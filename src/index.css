@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand: #d6123a;
+  --color-brand-strong: #b00e30;
+  --color-brand-soft: #fde8ec;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+  --color-brand: #ff5c7a;
+  --color-brand-strong: #ff7d95;
+  --color-brand-soft: #3a1119;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-950;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800;
+  }
+  .btn-sm {
+    @apply px-3.5 py-1.5 text-xs;
+  }
+  .icon-btn {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-brand dark:text-zinc-300 dark:hover:bg-zinc-800;
+  }
+  .card {
+    @apply rounded-3xl bg-white ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800;
+  }
+  .link {
+    @apply font-semibold text-brand underline-offset-2 hover:underline;
+  }
+  .text-muted {
+    @apply text-zinc-600 dark:text-zinc-400;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-brand dark:border-zinc-700 dark:bg-zinc-950;
+  }
+  .chip {
+    @apply rounded-full px-4 py-1.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-brand;
+  }
+  .chip-on {
+    @apply bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900;
+  }
+  .chip-off {
+    @apply text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800;
+  }
+}
+
+/* Post bodies: keep user content tidy and contained */
+.post-body img {
+  @apply mx-auto h-auto max-w-full rounded-xl;
+}
+.post-body pre {
+  @apply overflow-x-auto;
+}
+.post-body table {
+  @apply block overflow-x-auto;
+}
+.post-body {
+  overflow-wrap: anywhere;
+}
+
+dialog::backdrop {
+  backdrop-filter: blur(2px);
+}

@@ -1,9 +1,9 @@
 // Central app settings. Change the name here and it updates everywhere.
 // Keep this file free of browser APIs: vite.config.ts imports it too.
 
-export const APP_NAME = 'Hive Hello'
+export const APP_NAME = 'Hive Chain Mini'
 /** Written into json_metadata.app on everything the app broadcasts. */
-export const APP_ID = 'hivehello/0.1'
+export const APP_ID = 'hivechainmini/0.1'
 
 /**
  * Token values (payouts, rewards, prices) are never shown while this is false.

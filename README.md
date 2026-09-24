@@ -1,6 +1,6 @@
 # hivechainmini-frontend
 
-**Hive Hello** is a friendly, Reddit-style front end for the [Hive](https://hive.io) blockchain, made for people who are brand new to Hive.
+**Hive Chain Mini** is a friendly, Reddit-style front end for the [Hive](https://hive.io) blockchain, made for people who are brand new to Hive.
 
 - Browse communities, posts, comments and profiles without an account.
 - Log in with **Hive Keychain** (desktop extension) or **HiveAuth** (phone wallet) to upvote, comment, post, follow people and join communities.

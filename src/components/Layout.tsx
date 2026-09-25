@@ -117,6 +117,9 @@ export default function Layout() {
             <NavLink to="/communities" className={navCls}>
               Communities
             </NavLink>
+            <NavLink to="/snaps" className={navCls}>
+              Snaps
+            </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-1">
             <Link to="/submit" className="btn-primary btn-sm hidden sm:inline-flex">
@@ -146,6 +149,9 @@ export default function Layout() {
         </NavLink>
         <NavLink to="/communities" className={tabCls}>
           <span aria-hidden className="text-lg">🧭</span>Communities
+        </NavLink>
+        <NavLink to="/snaps" className={tabCls}>
+          <span aria-hidden className="text-lg">📸</span>Snaps
         </NavLink>
         <NavLink to="/submit" className={tabCls}>
           <span aria-hidden className="text-lg">✏️</span>Write

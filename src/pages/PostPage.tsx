@@ -8,10 +8,11 @@ import RewardInfo from '../components/RewardInfo'
 import { EmptyState, ErrorState, Spinner } from '../components/Status'
 import SuggestedReads from '../components/SuggestedReads'
 import VoteButton from '../components/VoteButton'
-import { getDiscussion, postKey, timeAgo, type Post } from '../lib/hive'
+import { getDiscussion, isNsfw, postKey, timeAgo, type Post } from '../lib/hive'
 import { invalidateCache, RpcError } from '../lib/rpc'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
+import { usePrefs } from '../state/prefs'
 
 /** For a reply, bridge `url` looks like "/category/@root/permlink#@reply/permlink". */
 function rootPathOf(p: Post) {
@@ -22,6 +23,8 @@ function rootPathOf(p: Post) {
 export default function PostPage() {
   const { author = '', permlink = '' } = useParams()
   const { account } = useAuth()
+  const { showNsfw, setShowNsfw } = usePrefs()
+  const [revealNsfw, setRevealNsfw] = useState(false)
   const { hash, state: navState } = useLocation()
   const justPosted = !!(navState as { justPosted?: boolean } | null)?.justPosted
   const [all, setAll] = useState<Record<string, Post> | null>(null)
@@ -92,6 +95,7 @@ export default function PostPage() {
 
   const isReply = root.depth > 0
   const rootPath = isReply ? rootPathOf(root) : null
+  const blurred = isNsfw(root) && !showNsfw && !revealNsfw
 
   return (
     <article>
@@ -105,44 +109,66 @@ export default function PostPage() {
           )}
         </div>
       )}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="min-w-0">
-          <div className="card p-5 sm:p-7">
-            <div className="mb-4 flex items-center gap-3">
-              <Link to={`/u/${root.author}`} aria-label={`@${root.author}'s profile`}>
-                <Avatar account={root.author} size={44} />
-              </Link>
-              <div className="min-w-0 flex-1 text-sm">
-                <Link to={`/u/${root.author}`} className="font-bold hover:underline">
-                  @{root.author}
-                </Link>
-                <div className="text-muted">
-                  {root.community && root.community_title && (
-                    <>
-                      <Link to={`/c/${root.community}`} className="font-medium hover:underline">
-                        {root.community_title}
-                      </Link>
-                      {' · '}
-                    </>
-                  )}
-                  <time dateTime={root.created + 'Z'}>{timeAgo(root.created)}</time>
-                </div>
-              </div>
-              <FollowButton account={root.author} small />
-            </div>
-            {root.title && <h1 className="mb-4 text-2xl leading-tight font-extrabold tracking-tight sm:text-3xl">{root.title}</h1>}
-            <Markdown source={root.body} />
-            <div className="mt-6 -ml-2 flex items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
-              <VoteButton post={root} />
-              <a href="#comments" className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">
-                💬 {root.children}
-              </a>
-              <RewardInfo post={root} />
-            </div>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)_360px] lg:items-start">
+        <aside className="order-3 lg:order-1 lg:sticky lg:top-20">
           <SuggestedReads current={root} observer={account ?? ''} />
+        </aside>
+        <div className="order-1 min-w-0 lg:order-2">
+          {blurred ? (
+            <div className="card flex flex-col items-center gap-3 p-10 text-center">
+              <div className="text-4xl" aria-hidden>
+                🔞
+              </div>
+              <h1 className="text-lg font-bold">This post is marked sensitive (18+)</h1>
+              <p className="max-w-sm text-sm text-muted">
+                {root.title || 'This content'} is hidden by your content filter. You can reveal just this post, or turn sensitive content on everywhere.
+              </p>
+              <div className="mt-1 flex flex-wrap justify-center gap-2">
+                <button className="btn-primary" onClick={() => setRevealNsfw(true)}>
+                  Show this post
+                </button>
+                <button className="btn-ghost" onClick={() => setShowNsfw(true)}>
+                  Always show sensitive content
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="card p-5 sm:p-7">
+              <div className="mb-4 flex items-center gap-3">
+                <Link to={`/u/${root.author}`} aria-label={`@${root.author}'s profile`}>
+                  <Avatar account={root.author} size={44} />
+                </Link>
+                <div className="min-w-0 flex-1 text-sm">
+                  <Link to={`/u/${root.author}`} className="font-bold hover:underline">
+                    @{root.author}
+                  </Link>
+                  <div className="text-muted">
+                    {root.community && root.community_title && (
+                      <>
+                        <Link to={`/c/${root.community}`} className="font-medium hover:underline">
+                          {root.community_title}
+                        </Link>
+                        {' · '}
+                      </>
+                    )}
+                    <time dateTime={root.created + 'Z'}>{timeAgo(root.created)}</time>
+                  </div>
+                </div>
+                <FollowButton account={root.author} small />
+              </div>
+              {root.title && <h1 className="mb-4 text-2xl leading-tight font-extrabold tracking-tight sm:text-3xl">{root.title}</h1>}
+              <Markdown source={root.body} />
+              <div className="mt-6 -ml-2 flex items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                <VoteButton post={root} />
+                <a href="#comments" className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                  💬 {root.children}
+                </a>
+                <RewardInfo post={root} />
+              </div>
+            </div>
+          )}
         </div>
-        <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:overscroll-contain">
+        <aside className="order-2 lg:order-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:overscroll-contain">
           <Comments root={root} t={thread} />
         </aside>
       </div>

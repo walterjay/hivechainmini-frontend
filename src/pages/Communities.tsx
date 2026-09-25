@@ -6,12 +6,14 @@ import { listCommunities, type Community } from '../lib/hive'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
 import { useCommunities } from '../state/communities'
+import { usePrefs } from '../state/prefs'
 
 const fmt = new Intl.NumberFormat('en', { notation: 'compact' })
 
 export default function Communities() {
   const { account } = useAuth()
   const { communities: mine } = useCommunities()
+  const { showNsfw } = usePrefs()
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   const [list, setList] = useState<Community[] | null>(null)
@@ -29,12 +31,12 @@ export default function Communities() {
     setList(null)
     setError(false)
     listCommunities(debounced, account ?? '', 50)
-      .then((r) => !off && setList(r.filter((c) => !c.is_nsfw)))
+      .then((r) => !off && setList(r.filter((c) => showNsfw || !c.is_nsfw)))
       .catch(() => !off && setError(true))
     return () => {
       off = true
     }
-  }, [debounced, account, attempt])
+  }, [debounced, account, attempt, showNsfw])
 
   return (
     <>

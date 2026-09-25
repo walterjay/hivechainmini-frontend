@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { APP_NAME } from '../config'
 import { save } from '../lib/storage'
 import { useAuth } from '../state/auth'
+import { usePrefs } from '../state/prefs'
 import Avatar from './Avatar'
 import LogoMark from './LogoMark'
 
@@ -20,6 +21,21 @@ function ThemeToggle() {
       }}
     >
       {dark ? '☀️' : '🌙'}
+    </button>
+  )
+}
+
+function NsfwToggle() {
+  const { showNsfw, setShowNsfw } = usePrefs()
+  return (
+    <button
+      className={`icon-btn ${showNsfw ? 'text-brand' : ''}`}
+      aria-pressed={showNsfw}
+      aria-label={showNsfw ? 'Sensitive (18+) content: shown. Click to hide it again.' : 'Sensitive (18+) content: hidden. Click to show it.'}
+      title={showNsfw ? 'Sensitive content shown' : 'Sensitive content hidden'}
+      onClick={() => setShowNsfw(!showNsfw)}
+    >
+      🔞
     </button>
   )
 }
@@ -77,6 +93,7 @@ const tabCls = ({ isActive }: { isActive: boolean }) =>
 export default function Layout() {
   const { account } = useAuth()
   const { pathname } = useLocation()
+  const width = pathname.startsWith('/p/') ? 'max-w-7xl' : 'max-w-4xl'
   // Braces matter: scrollTo returns a Promise in newer browsers, which React would treat as a cleanup.
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -87,7 +104,7 @@ export default function Layout() {
         Skip to content
       </a>
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
+        <div className={`mx-auto flex h-14 items-center gap-2 px-4 ${width}`}>
           <Link to="/" className="mr-2 flex items-center gap-2 text-lg font-extrabold tracking-tight">
             <LogoMark className="h-8 w-8" />
             {APP_NAME}
@@ -104,12 +121,13 @@ export default function Layout() {
             <Link to="/submit" className="btn-primary btn-sm hidden sm:inline-flex">
               ✏️ Write
             </Link>
+            <NsfwToggle />
             <ThemeToggle />
             <AccountMenu />
           </div>
         </div>
       </header>
-      <main id="main" className={`mx-auto px-4 py-5 ${pathname.startsWith('/p/') ? 'max-w-5xl' : 'max-w-3xl'}`}>
+      <main id="main" className={`mx-auto px-4 py-5 ${width}`}>
         <Outlet />
       </main>
       <nav

@@ -7,6 +7,7 @@ import { Spinner } from './components/Status'
 import { AuthProvider } from './state/auth'
 import { CommunitiesProvider } from './state/communities'
 import { FollowsProvider } from './state/follows'
+import { PrefsProvider } from './state/prefs'
 import { ToastProvider } from './state/toast'
 import Home, { Following } from './pages/Home'
 import Welcome from './pages/Welcome'
@@ -21,27 +22,29 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ToastProvider>
-        <AuthProvider>
-          <FollowsProvider>
-            <CommunitiesProvider>
-              <Suspense fallback={<Spinner />}>
-              <Routes>
-                <Route element={<Layout />}>
-                  <Route index element={<Home />} />
-                  <Route path="following" element={<Following />} />
-                  <Route path="welcome" element={<Welcome />} />
-                  <Route path="communities" element={<Communities />} />
-                  <Route path="c/:id" element={<CommunityPage />} />
-                  <Route path="p/:author/:permlink" element={<PostPage />} />
-                  <Route path="u/:account" element={<Profile />} />
-                  <Route path="submit" element={<Submit />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-              </Suspense>
-            </CommunitiesProvider>
-          </FollowsProvider>
-        </AuthProvider>
+        <PrefsProvider>
+          <AuthProvider>
+            <FollowsProvider>
+              <CommunitiesProvider>
+                <Suspense fallback={<Spinner />}>
+                  <Routes>
+                    <Route element={<Layout />}>
+                      <Route index element={<Home />} />
+                      <Route path="following" element={<Following />} />
+                      <Route path="welcome" element={<Welcome />} />
+                      <Route path="communities" element={<Communities />} />
+                      <Route path="c/:id" element={<CommunityPage />} />
+                      <Route path="p/:author/:permlink" element={<PostPage />} />
+                      <Route path="u/:account" element={<Profile />} />
+                      <Route path="submit" element={<Submit />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Route>
+                  </Routes>
+                </Suspense>
+              </CommunitiesProvider>
+            </FollowsProvider>
+          </AuthProvider>
+        </PrefsProvider>
       </ToastProvider>
     </BrowserRouter>
   </StrictMode>,

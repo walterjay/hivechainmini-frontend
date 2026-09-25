@@ -10,6 +10,7 @@ import { FollowsProvider } from './state/follows'
 import { PrefsProvider } from './state/prefs'
 import { ToastProvider } from './state/toast'
 import Home, { Following } from './pages/Home'
+import Legal from './pages/Legal'
 import Welcome from './pages/Welcome'
 import CommunityPage from './pages/CommunityPage'
 import NotFound from './pages/NotFound'
@@ -37,6 +38,7 @@ createRoot(document.getElementById('root')!).render(
                       <Route path="p/:author/:permlink" element={<PostPage />} />
                       <Route path="u/:account" element={<Profile />} />
                       <Route path="submit" element={<Submit />} />
+                      <Route path="legal" element={<Legal />} />
                       <Route path="*" element={<NotFound />} />
                     </Route>
                   </Routes>

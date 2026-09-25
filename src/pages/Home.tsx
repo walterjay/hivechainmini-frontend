@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar'
 import { EmptyState, Spinner } from '../components/Status'
 import { accountFeed, mergedFeed } from '../lib/feeds'
 import { getRankedPosts, visible } from '../lib/hive'
+import { invalidateCache } from '../lib/rpc'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
 import { useCommunities } from '../state/communities'
@@ -65,18 +66,29 @@ function SyncBanner() {
   )
 }
 
-function Tabs() {
+export function Tabs() {
   const cls = ({ isActive }: { isActive: boolean }) =>
     `border-b-2 px-1 pb-2 text-base font-bold transition ${isActive ? 'border-brand text-zinc-900 dark:text-zinc-50' : 'border-transparent text-muted hover:text-zinc-900 dark:hover:text-zinc-100'}`
   return (
     <nav className="mb-4 flex gap-6 border-b border-zinc-200 dark:border-zinc-800" aria-label="Feeds">
       <NavLink to="/" end className={cls}>
-        Home
+        Posts
       </NavLink>
       <NavLink to="/following" className={cls}>
         Following
       </NavLink>
+      <NavLink to="/communities" className={cls}>
+        Communities
+      </NavLink>
     </nav>
+  )
+}
+
+function RefreshButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="icon-btn" aria-label="Refresh" title="Refresh" onClick={onClick}>
+      🔄
+    </button>
   )
 }
 
@@ -84,9 +96,10 @@ export default function Home() {
   const { onboarded, communities } = useCommunities()
   const { account } = useAuth()
   const sort = useSort()
+  const [nonce, setNonce] = useState(0)
   useTitle()
   const ids = communities.map((c) => c.id)
-  const key = `${ids.join(',')}|${sort}|${account ?? ''}`
+  const key = `${ids.join(',')}|${sort}|${account ?? ''}|${nonce}`
   const loader = useMemo(() => mergedFeed(ids, sort, account ?? ''), [key])
 
   if (!onboarded) return <Navigate to="/welcome" replace />
@@ -96,10 +109,16 @@ export default function Home() {
       <Tabs />
       <SyncBanner />
       <div className="mb-4 flex items-center justify-between gap-2">
-        <SortChips />
-        <Link to="/communities" className="text-sm font-semibold text-brand hover:underline">
-          {communities.length} communities · Edit
-        </Link>
+        <div className="flex items-center gap-1">
+          <SortChips />
+          <RefreshButton
+            onClick={() => {
+              invalidateCache()
+              setNonce((n) => n + 1)
+            }}
+          />
+        </div>
+        <span className="text-sm text-muted">{communities.length} communities</span>
       </div>
       {communities.length === 0 ? (
         <EmptyState emoji="🧭" title="Your Home is ready to fill up">
@@ -159,6 +178,7 @@ function SuggestedPeople() {
 export function Following() {
   const { account, ensureLogin } = useAuth()
   const { loaded, following } = useFollows()
+  const [nonce, setNonce] = useState(0)
   useTitle('Following')
   const loader = useMemo(() => (account ? accountFeed(account, 'feed', account) : null), [account])
 
@@ -187,15 +207,25 @@ export function Following() {
     )
   } else {
     body = (
-      <Feed
-        resetKey={`feed|${account}|${following.size}`}
-        loadPage={loader!}
-        empty={
-          <EmptyState emoji="🌱" title="No new posts yet">
-            <p>The people you follow haven’t posted lately. Check back soon!</p>
-          </EmptyState>
-        }
-      />
+      <>
+        <div className="mb-4 flex justify-end">
+          <RefreshButton
+            onClick={() => {
+              invalidateCache()
+              setNonce((n) => n + 1)
+            }}
+          />
+        </div>
+        <Feed
+          resetKey={`feed|${account}|${following.size}|${nonce}`}
+          loadPage={loader!}
+          empty={
+            <EmptyState emoji="🌱" title="No new posts yet">
+              <p>The people you follow haven’t posted lately. Check back soon!</p>
+            </EmptyState>
+          }
+        />
+      </>
     )
   }
 

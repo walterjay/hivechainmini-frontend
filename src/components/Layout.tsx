@@ -3,7 +3,6 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { APP_NAME } from '../config'
 import { save } from '../lib/storage'
 import { useAuth } from '../state/auth'
-import { usePrefs } from '../state/prefs'
 import Avatar from './Avatar'
 import LogoMark from './LogoMark'
 import NotificationBell from './NotificationBell'
@@ -26,18 +25,66 @@ function ThemeToggle() {
   )
 }
 
-function NsfwToggle() {
-  const { showNsfw, setShowNsfw } = usePrefs()
+function WriteMenu({ variant }: { variant: 'desktop' | 'mobile' }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const loc = useLocation()
+  useEffect(() => {
+    setOpen(false)
+  }, [loc.pathname])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const onClick = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('click', onClick)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('click', onClick)
+    }
+  }, [open])
+
+  const items = (
+    <>
+      <Link role="menuitem" to="/submit" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        📝 New post
+      </Link>
+      <Link role="menuitem" to="/snaps/new" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        📸 New snap
+      </Link>
+    </>
+  )
+
+  if (variant === 'mobile')
+    return (
+      <div className="relative flex-1" ref={ref}>
+        <button
+          className={`flex w-full flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${open ? 'text-brand' : 'text-muted'}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span aria-hidden className="text-lg">✏️</span>Write
+        </button>
+        {open && (
+          <div role="menu" className="card absolute right-0 bottom-full z-40 mb-2 w-44 overflow-hidden p-1 shadow-lg">
+            {items}
+          </div>
+        )}
+      </div>
+    )
+
   return (
-    <button
-      className={`icon-btn ${showNsfw ? 'text-brand' : ''}`}
-      aria-pressed={showNsfw}
-      aria-label={showNsfw ? 'Sensitive (18+) content: shown. Click to hide it again.' : 'Sensitive (18+) content: hidden. Click to show it.'}
-      title={showNsfw ? 'Sensitive content shown' : 'Sensitive content hidden'}
-      onClick={() => setShowNsfw(!showNsfw)}
-    >
-      🔞
-    </button>
+    <div className="relative hidden sm:block" ref={ref}>
+      <button className="btn-primary btn-sm" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        ✏️ Write
+      </button>
+      {open && (
+        <div role="menu" className="card absolute right-0 z-40 mt-2 w-44 overflow-hidden p-1 shadow-lg">
+          {items}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -111,21 +158,15 @@ export default function Layout() {
             {APP_NAME}
           </Link>
           <nav className="hidden items-center gap-1 sm:flex" aria-label="Main">
-            <NavLink to="/" end className={navCls}>
-              Home
-            </NavLink>
-            <NavLink to="/communities" className={navCls}>
-              Communities
-            </NavLink>
             <NavLink to="/snaps" className={navCls}>
               Snaps
             </NavLink>
+            <NavLink to="/" end className={navCls}>
+              Posts
+            </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-1">
-            <Link to="/submit" className="btn-primary btn-sm hidden sm:inline-flex">
-              ✏️ Write
-            </Link>
-            <NsfwToggle />
+            <WriteMenu variant="desktop" />
             <ThemeToggle />
             <NotificationBell />
             <AccountMenu />
@@ -145,17 +186,12 @@ export default function Layout() {
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden dark:border-zinc-800 dark:bg-zinc-950/95"
       >
         <NavLink to="/" end className={tabCls}>
-          <span aria-hidden className="text-lg">🏠</span>Home
-        </NavLink>
-        <NavLink to="/communities" className={tabCls}>
-          <span aria-hidden className="text-lg">🧭</span>Communities
+          <span aria-hidden className="text-lg">🏠</span>Posts
         </NavLink>
         <NavLink to="/snaps" className={tabCls}>
           <span aria-hidden className="text-lg">📸</span>Snaps
         </NavLink>
-        <NavLink to="/submit" className={tabCls}>
-          <span aria-hidden className="text-lg">✏️</span>Write
-        </NavLink>
+        <WriteMenu variant="mobile" />
         <NavLink to={account ? `/u/${account}` : '/following'} className={tabCls}>
           <span aria-hidden className="text-lg">🙂</span>
           {account ? 'Me' : 'Following'}

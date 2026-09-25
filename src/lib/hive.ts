@@ -120,6 +120,40 @@ export function listCommunities(query: string, observer = '', limit = 50) {
   )
 }
 
+export interface Notification {
+  id: number
+  type: string
+  score: number
+  date: string
+  msg: string
+  url: string
+}
+
+/** Replies, mentions, votes, follows and reblogs, newest first. */
+export function getNotifications(account: string, limit = 30) {
+  return cachedRpc<Notification[]>('bridge.account_notifications', { account, limit }, 30_000)
+}
+
+const NOTIF_ICON: Record<string, string> = {
+  vote: '⬆️',
+  reply: '💬',
+  reply_comment: '💬',
+  mention: '📣',
+  follow: '🙂',
+  reblog: '🔁',
+  subscribe: '🏘️',
+}
+
+export function notificationIcon(type: string) {
+  return NOTIF_ICON[type] ?? '🔔'
+}
+
+/** A notification's `url` points at a post/comment in various shapes; pull out the root path. */
+export function notificationPath(n: Notification) {
+  const m = n.url.match(/@([a-z0-9.-]+)\/([a-z0-9-]+)/)
+  return m ? `/p/${m[1]}/${m[2]}` : null
+}
+
 /** [community id, title, role, custom title] */
 export function listAllSubscriptions(account: string) {
   return rpc<[string, string, string, string][]>('bridge.list_all_subscriptions', { account })

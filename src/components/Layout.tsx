@@ -6,6 +6,7 @@ import { useAuth } from '../state/auth'
 import { usePrefs } from '../state/prefs'
 import Avatar from './Avatar'
 import LogoMark from './LogoMark'
+import NotificationBell from './NotificationBell'
 
 function ThemeToggle() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
@@ -123,6 +124,7 @@ export default function Layout() {
             </Link>
             <NsfwToggle />
             <ThemeToggle />
+            <NotificationBell />
             <AccountMenu />
           </div>
         </div>

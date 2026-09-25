@@ -130,6 +130,11 @@ export default function Layout() {
       <main id="main" className={`mx-auto px-4 py-5 ${width}`}>
         <Outlet />
       </main>
+      <footer className={`mx-auto px-4 pb-4 text-center text-xs text-muted ${width}`}>
+        <Link to="/legal" className="hover:underline">
+          Legal notice
+        </Link>
+      </footer>
       <nav
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden dark:border-zinc-800 dark:bg-zinc-950/95"

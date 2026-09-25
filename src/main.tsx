@@ -18,6 +18,7 @@ const Communities = lazy(() => import('./pages/Communities'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Submit = lazy(() => import('./pages/Submit'))
 const PostPage = lazy(() => import('./pages/PostPage'))
+const Snaps = lazy(() => import('./pages/Snaps'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -34,6 +35,7 @@ createRoot(document.getElementById('root')!).render(
                       <Route path="following" element={<Following />} />
                       <Route path="welcome" element={<Welcome />} />
                       <Route path="communities" element={<Communities />} />
+                      <Route path="snaps" element={<Snaps />} />
                       <Route path="c/:id" element={<CommunityPage />} />
                       <Route path="p/:author/:permlink" element={<PostPage />} />
                       <Route path="u/:account" element={<Profile />} />

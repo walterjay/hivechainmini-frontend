@@ -109,7 +109,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-3xl px-4 py-5">
+      <main id="main" className={`mx-auto px-4 py-5 ${pathname.startsWith('/p/') ? 'max-w-5xl' : 'max-w-3xl'}`}>
         <Outlet />
       </main>
       <nav

@@ -5,6 +5,7 @@ import { postPath } from '../components/PostCard'
 import { CardSkeleton, EmptyState, ErrorState } from '../components/Status'
 import { IMAGE_PROXY } from '../config'
 import { firstImage, summary, timeAgo } from '../lib/hive'
+import { invalidateCache } from '../lib/rpc'
 import { getShortFormFeed, SHORT_FORM_SOURCES, type ShortFormItem } from '../lib/shortform'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
@@ -35,12 +36,17 @@ export default function Snaps() {
 
   return (
     <>
-      <div className="mb-1 flex flex-col gap-1">
-        <h1 className="text-2xl font-extrabold tracking-tight">Snaps</h1>
-        <p className="text-sm text-muted">Quick, short-form posts from across Hive — Snaps, Threads and Waves, newest first.</p>
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-extrabold tracking-tight">Snaps</h1>
+          <p className="text-sm text-muted">Quick, short-form posts from across Hive — Snaps, Threads and Waves, newest first.</p>
+        </div>
+        <Link to="/snaps/new" className="btn-primary btn-sm shrink-0">
+          + New snap
+        </Link>
       </div>
 
-      <div className="my-4 flex flex-wrap gap-1" role="group" aria-label="Filter by source">
+      <div className="my-4 flex flex-wrap items-center gap-1" role="group" aria-label="Filter by source">
         <button className={`chip ${only === null ? 'chip-on' : 'chip-off'}`} onClick={() => setOnly(null)}>
           All
         </button>
@@ -49,6 +55,17 @@ export default function Snaps() {
             {s.icon} {s.label}
           </button>
         ))}
+        <button
+          className="icon-btn ml-auto"
+          aria-label="Refresh"
+          title="Refresh"
+          onClick={() => {
+            invalidateCache()
+            setAttempt((a) => a + 1)
+          }}
+        >
+          🔄
+        </button>
       </div>
 
       {error && !items ? (

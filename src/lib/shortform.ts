@@ -24,7 +24,8 @@ export interface ShortFormItem extends Post {
   source: string
 }
 
-async function latestContainer(account: string): Promise<Post | null> {
+/** The source's current container post - a new snap is posted as a top-level reply to this. */
+export async function latestContainer(account: string): Promise<Post | null> {
   const posts = await getAccountPosts(account, 'posts', '', 1)
   return posts[0] ?? null
 }

@@ -33,6 +33,7 @@ export default function CommentBox({
   onCancel,
   autoFocus = false,
   placeholder = 'Say something kind…',
+  submitLabel = 'Reply',
 }: {
   parent: Post
   onPosted: (c: Post) => void
@@ -40,6 +41,7 @@ export default function CommentBox({
   onCancel?: () => void
   autoFocus?: boolean
   placeholder?: string
+  submitLabel?: string
 }) {
   const { account, ensureLogin, broadcast } = useAuth()
   const [body, setBody] = useState('')
@@ -130,7 +132,7 @@ export default function CommentBox({
             {preview ? 'Edit' : 'Preview'}
           </button>
           <button type="submit" className="btn-primary btn-sm" disabled={!len || busy}>
-            {busy ? 'Sending…' : 'Reply'}
+            {busy ? 'Sending…' : submitLabel}
           </button>
         </div>
       </div>

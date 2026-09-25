@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { postKey, visible, type Post } from '../lib/hive'
+import { isNsfw, postKey, visible, type Post } from '../lib/hive'
+import { usePrefs } from '../state/prefs'
 import PostCard from './PostCard'
 import { CardSkeleton, ErrorState } from './Status'
 
@@ -32,6 +33,7 @@ export default function Feed({
   const gen = useRef(0)
   const loader = useRef(loadPage)
   loader.current = loadPage
+  const { showNsfw } = usePrefs()
 
   const run = useCallback(async (first: boolean) => {
     const g = first ? ++gen.current : gen.current
@@ -46,7 +48,9 @@ export default function Feed({
       if (g !== gen.current) return
       setPosts((prev) => {
         const seen = new Set((first ? [] : (prev ?? [])).map(postKey))
-        const fresh = page.posts.filter((p) => visible(p) && !seen.has(postKey(p)) && seen.add(postKey(p)))
+        const fresh = page.posts.filter(
+          (p) => visible(p) && (showNsfw || !isNsfw(p)) && !seen.has(postKey(p)) && seen.add(postKey(p)),
+        )
         return first ? fresh : [...(prev ?? []), ...fresh]
       })
       setDone(page.done)
@@ -55,7 +59,7 @@ export default function Feed({
     } finally {
       if (g === gen.current) setLoadingMore(false)
     }
-  }, [])
+  }, [showNsfw])
 
   useEffect(() => {
     run(true)

@@ -68,6 +68,13 @@ export function visible(p: Post) {
   return !p.stats?.hide && !p.stats?.gray
 }
 
+/** Best-effort 18+ signal: the post is tagged nsfw, or its own community is. */
+export function isNsfw(p: Post, community?: Community | null) {
+  if (community?.is_nsfw) return true
+  const tags = p.json_metadata?.tags
+  return Array.isArray(tags) && tags.some((t) => typeof t === 'string' && t.toLowerCase() === 'nsfw')
+}
+
 export function getRankedPosts(tag: string, sort: RankedSort, observer = '', limit = 20, start?: Post) {
   return cachedRpc<Post[]>('bridge.get_ranked_posts', {
     sort,

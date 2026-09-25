@@ -4,6 +4,7 @@ import { APP_NAME } from '../config'
 import { save } from '../lib/storage'
 import { useAuth } from '../state/auth'
 import Avatar from './Avatar'
+import LogoMark from './LogoMark'
 
 function ThemeToggle() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
@@ -88,9 +89,7 @@ export default function Layout() {
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
           <Link to="/" className="mr-2 flex items-center gap-2 text-lg font-extrabold tracking-tight">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand text-white dark:text-zinc-950" aria-hidden>
-              H
-            </span>
+            <LogoMark className="h-8 w-8" />
             {APP_NAME}
           </Link>
           <nav className="hidden items-center gap-1 sm:flex" aria-label="Main">

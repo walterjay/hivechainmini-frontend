@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { APP_ID, COMMENT_SOFT_CAP } from '../config'
 import { friendlyError, isCancel } from '../lib/errors'
+import { snapTags } from '../lib/hashtags'
 import { replyPermlink } from '../lib/permlink'
 import { invalidateCache } from '../lib/rpc'
 import { isSafeCanvas } from '../lib/safety'
@@ -98,7 +99,7 @@ export default function Compose() {
               json_metadata: JSON.stringify({
                 app: APP_ID,
                 format: 'markdown',
-                tags: [...(container.community ? [container.community] : []), ...(url ? ['photo'] : [])],
+                tags: snapTags(body, !!url),
                 ...(url ? { image: [url] } : {}),
               }),
             },

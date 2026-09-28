@@ -34,7 +34,7 @@ export default function SnapModal({ author, permlink, onClose }: { author: strin
       role="presentation"
     >
       <div
-        className="card relative mx-auto w-full max-w-lg p-5 sm:p-6"
+        className="card relative mx-auto w-full max-w-lg p-5 sm:p-6 lg:max-w-4xl lg:p-8"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

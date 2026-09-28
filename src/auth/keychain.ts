@@ -14,6 +14,7 @@ interface HiveKeychain {
   requestHandshake(cb: () => void): void
   requestSignBuffer(account: string | null, message: string, key: 'Posting', cb: Cb, rpc?: string | null, title?: string): void
   requestBroadcast(account: string, operations: Operation[], key: 'Posting', cb: Cb, rpc?: string | null): void
+  requestVote(account: string, permlink: string, author: string, weight: number, cb: Cb, rpc?: string | null): void
 }
 
 declare global {
@@ -56,7 +57,16 @@ export function keychainBroadcast(account: string, ops: Operation[]): Promise<vo
   return new Promise((resolve, reject) => {
     const kc = window.hive_keychain
     if (!kc) return reject(new Error('Hive Keychain not found'))
-    kc.requestBroadcast(account, ops, 'Posting', (r) => (r.success ? resolve() : reject(toError(r))), currentNode())
+    const cb: Cb = (r) => (r.success ? resolve() : reject(toError(r)))
+    // A lone vote goes through requestVote: Keychain's "Do not prompt again" box is per
+    // request type, so ticking it for votes doesn't also silence posts and comments.
+    const [op] = ops
+    if (ops.length === 1 && op[0] === 'vote') {
+      const v = op[1] as { author: string; permlink: string; weight: number }
+      kc.requestVote(account, v.permlink, v.author, v.weight, cb, currentNode())
+    } else {
+      kc.requestBroadcast(account, ops, 'Posting', cb, currentNode())
+    }
   })
 }
 

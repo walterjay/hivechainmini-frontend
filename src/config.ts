@@ -11,8 +11,14 @@ export const APP_ID = 'hivechainmini/0.1'
  */
 export const SHOW_REWARDS = false
 
-/** Upvote strength, 1-100. */
+/** Upvote strength, 1-100, for everyday accounts (one tap, no choices). */
 export const VOTE_WEIGHT_PERCENT = 100
+
+/**
+ * Accounts with at least this much staked HIVE get a strength slider when they
+ * upvote, since a full-strength vote from them moves a lot. Newcomers never see it.
+ */
+export const VOTE_PICKER_MIN_STAKE = 500
 
 /** Soft cap for new posts, in characters. */
 export const POST_SOFT_CAP = 5000
@@ -23,11 +29,15 @@ export interface CommunityRef {
   title: string
 }
 
-/** Checked 2026-09-24 via bridge.list_communities: all active, thousands of subscribers. */
+/**
+ * Checked 2026-09-24 via bridge.list_communities: all active, thousands of subscribers.
+ * Worldmappin added 2026-09-28 (18.5k subscribers, ~200 active authors).
+ */
 export const DEFAULT_COMMUNITIES: CommunityRef[] = [
   { id: 'hive-153850', title: 'Hive Learners' },
   { id: 'hive-194913', title: 'Photography Lovers' },
   { id: 'hive-100067', title: 'Hive Food' },
+  { id: 'hive-163772', title: 'Worldmappin' },
 ]
 
 /** Public API nodes, tried in order with failover. All send CORS headers. */

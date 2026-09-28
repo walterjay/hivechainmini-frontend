@@ -159,6 +159,37 @@ export function listAllSubscriptions(account: string) {
   return rpc<[string, string, string, string][]>('bridge.list_all_subscriptions', { account })
 }
 
+// Stake is only used to decide whether to offer the vote-strength slider; it is never displayed.
+const stakeCache = new Map<string, Promise<number>>()
+
+/** An account's own staked HIVE (after delegations), for sizing its vote. */
+export function getStake(account: string): Promise<number> {
+  let hit = stakeCache.get(account)
+  if (!hit) {
+    type Acct = {
+      vesting_shares: string
+      delegated_vesting_shares: string
+      received_vesting_shares: string
+    }
+    type Props = {
+      total_vesting_fund_hive: string
+      total_vesting_shares: string
+    }
+    hit = Promise.all([
+      rpc<Acct[]>('condenser_api.get_accounts', [[account]]),
+      cachedRpc<Props>('condenser_api.get_dynamic_global_properties', [], 3_600_000),
+    ]).then(([[a], g]) => {
+      if (!a) throw new Error('Account not found')
+      const n = parseFloat
+      const shares = n(a.vesting_shares) - n(a.delegated_vesting_shares) + n(a.received_vesting_shares)
+      return (shares * n(g.total_vesting_fund_hive)) / n(g.total_vesting_shares)
+    })
+    stakeCache.set(account, hit)
+    hit.catch(() => stakeCache.delete(account))
+  }
+  return hit
+}
+
 export function getProfile(account: string, observer = '') {
   return cachedRpc<Profile | null>('bridge.get_profile', { account, observer }, 30_000)
 }

@@ -8,6 +8,7 @@ const BLURBS: Record<string, string> = {
   'hive-153850': 'Learn, share what you know, and grow alongside other newcomers.',
   'hive-194913': 'Your best shots, from phone snaps to pro gear.',
   'hive-100067': 'Recipes, restaurant finds and everything tasty.',
+  'hive-163772': 'Travel stories and places, each pinned on a world map.',
 }
 
 export default function Welcome() {

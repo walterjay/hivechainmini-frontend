@@ -3,12 +3,12 @@ import { Link } from 'react-router'
 import JoinButton from '../components/JoinButton'
 import { CardSkeleton, EmptyState, ErrorState } from '../components/Status'
 import { listCommunities, type Community } from '../lib/hive'
-import { invalidateCache } from '../lib/rpc'
+import { useRefresh } from '../lib/refresh'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
 import { useCommunities } from '../state/communities'
 import { usePrefs } from '../state/prefs'
-import { Tabs } from './Home'
+import { PostsNav } from './Home'
 
 const fmt = new Intl.NumberFormat('en', { notation: 'compact' })
 
@@ -21,6 +21,7 @@ export default function Communities() {
   const [list, setList] = useState<Community[] | null>(null)
   const [error, setError] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  useRefresh(() => setAttempt((a) => a + 1))
   useTitle('Communities')
 
   useEffect(() => {
@@ -42,24 +43,9 @@ export default function Communities() {
 
   return (
     <>
-      <Tabs />
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Communities</h1>
-          <p className="mt-1 text-sm text-muted">Join the ones you like. Their posts show up on your Home feed.</p>
-        </div>
-        <button
-          className="icon-btn shrink-0"
-          aria-label="Refresh"
-          title="Refresh"
-          onClick={() => {
-            invalidateCache()
-            setAttempt((a) => a + 1)
-          }}
-        >
-          🔄
-        </button>
-      </div>
+      <PostsNav />
+      <h1 className="text-2xl font-extrabold tracking-tight">Communities</h1>
+      <p className="mt-1 text-sm text-muted">Join the ones you like. Their posts show up under Posts.</p>
 
       {mine.length > 0 && (
         <section className="mt-5" aria-labelledby="mine">

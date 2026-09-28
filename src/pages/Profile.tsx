@@ -71,7 +71,6 @@ export default function Profile() {
       <Feed
         resetKey={`${name}|${tab}|${account ?? ''}`}
         loadPage={loader}
-        showFollow={false}
         empty={
           <EmptyState emoji={tab === 'posts' ? '📝' : '💬'} title={tab === 'posts' ? 'No posts yet' : 'No comments yet'}>
             {isMe && <p>{tab === 'posts' ? 'Your first post is just a tap away. Say hello!' : 'Find a post you like and say something nice.'}</p>}

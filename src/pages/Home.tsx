@@ -1,35 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, NavLink, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import Feed from '../components/Feed'
 import FollowButton from '../components/FollowButton'
 import Avatar from '../components/Avatar'
 import { EmptyState, Spinner } from '../components/Status'
 import { accountFeed, mergedFeed } from '../lib/feeds'
 import { getRankedPosts, visible } from '../lib/hive'
-import { invalidateCache } from '../lib/rpc'
+import { requestRefresh, useRefresh } from '../lib/refresh'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
 import { useCommunities } from '../state/communities'
 import { useFollows } from '../state/follows'
-
-function SortChips() {
-  const [params, setParams] = useSearchParams()
-  const sort = params.get('sort') === 'new' ? 'new' : 'hot'
-  return (
-    <div className="flex gap-1" role="group" aria-label="Sort posts">
-      {(['hot', 'new'] as const).map((s) => (
-        <button
-          key={s}
-          aria-pressed={sort === s}
-          className={`chip ${sort === s ? 'chip-on' : 'chip-off'}`}
-          onClick={() => setParams(s === 'hot' ? {} : { sort: s }, { replace: true })}
-        >
-          {s === 'hot' ? '🔥 Hot' : '✨ New'}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 export function useSort(): 'hot' | 'created' {
   const [params] = useSearchParams()
@@ -66,29 +47,38 @@ function SyncBanner() {
   )
 }
 
-export function Tabs() {
-  const cls = ({ isActive }: { isActive: boolean }) =>
-    `border-b-2 px-1 pb-2 text-base font-bold transition ${isActive ? 'border-brand text-zinc-900 dark:text-zinc-50' : 'border-transparent text-muted hover:text-zinc-900 dark:hover:text-zinc-100'}`
+/**
+ * The one row of choices for the Posts area. Tapping the chip you're already
+ * on refreshes it.
+ */
+export function PostsNav() {
+  const { pathname, search } = useLocation()
+  const isNew = new URLSearchParams(search).get('sort') === 'new'
+  const items = [
+    { to: '/posts', label: '🔥 Hot', on: pathname === '/posts' && !isNew },
+    { to: '/posts?sort=new', label: '✨ New', on: pathname === '/posts' && isNew },
+    { to: '/following', label: '🙂 Following', on: pathname === '/following' },
+    { to: '/communities', label: '🧭 Communities', on: pathname === '/communities' },
+  ]
   return (
-    <nav className="mb-4 flex gap-6 border-b border-zinc-200 dark:border-zinc-800" aria-label="Feeds">
-      <NavLink to="/" end className={cls}>
-        Posts
-      </NavLink>
-      <NavLink to="/following" className={cls}>
-        Following
-      </NavLink>
-      <NavLink to="/communities" className={cls}>
-        Communities
-      </NavLink>
+    <nav className="-mx-4 mb-4 flex gap-1 overflow-x-auto px-4 [scrollbar-width:none]" aria-label="Posts">
+      {items.map((it) => (
+        <Link
+          key={it.to}
+          to={it.to}
+          replace
+          aria-current={it.on ? 'page' : undefined}
+          className={`chip shrink-0 whitespace-nowrap ${it.on ? 'chip-on' : 'chip-off'}`}
+          onClick={(e) => {
+            if (!it.on) return
+            e.preventDefault()
+            requestRefresh()
+          }}
+        >
+          {it.label}
+        </Link>
+      ))}
     </nav>
-  )
-}
-
-function RefreshButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button className="icon-btn" aria-label="Refresh" title="Refresh" onClick={onClick}>
-      🔄
-    </button>
   )
 }
 
@@ -101,25 +91,15 @@ export default function Home() {
   const ids = communities.map((c) => c.id)
   const key = `${ids.join(',')}|${sort}|${account ?? ''}|${nonce}`
   const loader = useMemo(() => mergedFeed(ids, sort, account ?? ''), [key])
+  useRefresh(() => setNonce((n) => n + 1))
 
   if (!onboarded) return <Navigate to="/welcome" replace />
 
   return (
     <>
-      <Tabs />
+      <h1 className="sr-only">Posts</h1>
+      <PostsNav />
       <SyncBanner />
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
-          <SortChips />
-          <RefreshButton
-            onClick={() => {
-              invalidateCache()
-              setNonce((n) => n + 1)
-            }}
-          />
-        </div>
-        <span className="text-sm text-muted">{communities.length} communities</span>
-      </div>
       {communities.length === 0 ? (
         <EmptyState emoji="🧭" title="Your Home is ready to fill up">
           <p>Join a few communities and their posts will show up here.</p>
@@ -181,6 +161,7 @@ export function Following() {
   const [nonce, setNonce] = useState(0)
   useTitle('Following')
   const loader = useMemo(() => (account ? accountFeed(account, 'feed', account) : null), [account])
+  useRefresh(() => setNonce((n) => n + 1))
 
   let body
   if (!account) {
@@ -208,14 +189,6 @@ export function Following() {
   } else {
     body = (
       <>
-        <div className="mb-4 flex justify-end">
-          <RefreshButton
-            onClick={() => {
-              invalidateCache()
-              setNonce((n) => n + 1)
-            }}
-          />
-        </div>
         <Feed
           resetKey={`feed|${account}|${following.size}|${nonce}`}
           loadPage={loader!}
@@ -231,7 +204,8 @@ export function Following() {
 
   return (
     <>
-      <Tabs />
+      <h1 className="sr-only">Following</h1>
+      <PostsNav />
       {body}
     </>
   )

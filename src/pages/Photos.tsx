@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import Avatar from '../components/Avatar'
 import Dialog from '../components/Dialog'
 import FollowButton from '../components/FollowButton'
@@ -9,8 +9,9 @@ import { postPath } from '../components/PostCard'
 import VoteButton from '../components/VoteButton'
 import { IMAGE_PROXY } from '../config'
 import { MIN_REPUTATION } from '../lib/photo-filters'
-import { createPhotoFeed, type PhotoFilter, type PhotoItem } from '../lib/photos'
+import { createPhotoFeed, type PhotoItem } from '../lib/photos'
 import { invalidateCache } from '../lib/rpc'
+import { useRefresh } from '../lib/refresh'
 import { checkImage, loadSafetyModel } from '../lib/safety'
 import { load, save } from '../lib/storage'
 import { timeAgo } from '../lib/hive'
@@ -20,20 +21,15 @@ import { useToast } from '../state/toast'
 
 type Status = 'loading' | 'ready' | 'error' | 'no-checker'
 
-const FILTERS: { id: PhotoFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'snaps', label: 'Snaps' },
-  { id: 'posts', label: 'Posts' },
-]
-
 const HIDDEN_KEY = 'hh.photos.hidden'
+const ENLARGED_KEY = 'hh.photos.enlarged'
 interface Hidden {
   people: string[]
   posts: string[]
 }
 
 /**
- * One feed (per filter and viewer) kept in memory for the whole visit, so
+ * One feed (per viewer) kept in memory for the whole visit, so
  * leaving Photos to open a post and coming back lands on the same photo in the
  * same list. It only starts over when the user taps refresh or reloads the page.
  */
@@ -52,11 +48,11 @@ interface FeedSession {
 
 const sessions = new Map<string, FeedSession>()
 
-function sessionFor(filter: PhotoFilter, observer: string): FeedSession {
-  const key = `${filter}|${observer}`
+function sessionFor(observer: string): FeedSession {
+  const key = observer
   let s = sessions.get(key)
   if (!s) {
-    s = { key, feed: createPhotoFeed(filter, observer), items: [], status: 'loading', done: false, busy: false, heldBack: 0, index: 0, listeners: new Set() }
+    s = { key, feed: createPhotoFeed(observer), items: [], status: 'loading', done: false, busy: false, heldBack: 0, index: 0, listeners: new Set() }
     sessions.set(key, s)
   }
   return s
@@ -105,10 +101,10 @@ async function pump(s: FeedSession) {
   }
 }
 
-function usePhotoFeed(filter: PhotoFilter, observer: string) {
+function usePhotoFeed(observer: string) {
   const [attempt, setAttempt] = useState(0)
   // `attempt` makes this pick up the fresh session after a refresh.
-  const session = useMemo(() => sessionFor(filter, observer), [filter, observer, attempt])
+  const session = useMemo(() => sessionFor(observer), [observer, attempt])
   const [, rerender] = useReducer((n: number) => n + 1, 0)
 
   useEffect(() => {
@@ -172,11 +168,16 @@ function Slide({
   eager,
   onHide,
   onOpenSnap,
+  showHint,
+  onEnlarge,
 }: {
   item: PhotoItem
   eager: boolean
   onHide: (what: 'post' | 'person') => void
   onOpenSnap: () => void
+  /** "Tap to enlarge" is only shown until the user has done it once. */
+  showHint: boolean
+  onEnlarge: () => void
 }) {
   const toast = useToast()
   const [pic, setPic] = useState(0)
@@ -216,7 +217,12 @@ function Slide({
                 referrerPolicy="no-referrer"
                 className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl"
               />
-              <button className="relative block h-full w-full cursor-zoom-in" aria-label="View photo full screen" onClick={() => setViewing(i)}>
+              <button className="relative block h-full w-full cursor-zoom-in" aria-label="View photo full screen"
+                onClick={() => {
+                  setViewing(i)
+                  onEnlarge()
+                }}
+              >
                 <img
                   src={`${IMAGE_PROXY}/1080x0/${url}`}
                   alt={item.images.length > 1 ? `${alt} (${i + 1} of ${item.images.length})` : alt}
@@ -247,7 +253,8 @@ function Slide({
             <FollowButton account={p.author} small />
           </div>
           <p className="mt-1 text-xs text-white/70">
-            {item.via} · {timeAgo(p.created)}
+            {item.via && `${item.via} · `}
+            {timeAgo(p.created)}
           </p>
           {item.title && (
             <Link to={postPath(p)} className="pointer-events-auto mt-2 block leading-snug font-bold hover:underline">
@@ -272,9 +279,11 @@ function Slide({
           </Link>
         </div>
 
-        <span className="pointer-events-none absolute top-16 right-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur" aria-hidden>
-          ⤢ Tap to enlarge
-        </span>
+        {showHint && (
+          <span className="pointer-events-none absolute top-16 right-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur" aria-hidden>
+            ⤢ Tap to enlarge
+          </span>
+        )}
 
         {viewing !== null && (
           <PhotoLightbox
@@ -342,13 +351,13 @@ export default function Photos() {
   useTitle('Photos')
   const { account } = useAuth()
   const toast = useToast()
-  const [params, setParams] = useSearchParams()
-  const filter = FILTERS.find((f) => f.id === params.get('from'))?.id ?? 'all'
-  const { session, more, reload } = usePhotoFeed(filter, account ?? '')
+  const { session, more, reload } = usePhotoFeed(account ?? '')
   const { items, status, done, busy, heldBack } = session
   const [hidden, setHidden] = useState<Hidden>(() => load(HIDDEN_KEY, { people: [], posts: [] }))
   const [info, setInfo] = useState(false)
   const [openSnap, setOpenSnap] = useState<PhotoItem | null>(null)
+  const [enlarged, setEnlarged] = useState(() => load(ENLARGED_KEY, false))
+  useRefresh(reload)
   const [index, setIndex] = useState(0)
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -390,34 +399,14 @@ export default function Photos() {
     toast(what === 'post' ? 'Photo hidden.' : `You won’t see photos from @${item.post.author} here anymore.`)
   }
 
-  const chip = (on: boolean) =>
-    `rounded-full px-3.5 py-1.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-white ${
-      on ? 'bg-white text-zinc-900' : 'text-white/85 hover:bg-white/15'
-    }`
-
   return (
     <div className="fixed inset-x-0 top-14 bottom-[calc(3.75rem+1px+env(safe-area-inset-bottom))] bg-zinc-950 sm:bottom-0">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-1 bg-gradient-to-b from-black/60 to-transparent px-3 pt-3 pb-6">
-        <div className="pointer-events-auto flex gap-1" role="group" aria-label="Show">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              className={chip(filter === f.id)}
-              aria-pressed={filter === f.id}
-              onClick={() => setParams(f.id === 'all' ? {} : { from: f.id }, { replace: true })}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
         <div className="pointer-events-auto ml-auto flex items-center gap-1">
           <button className="grid h-9 w-9 place-items-center rounded-full text-lg hover:bg-white/15" aria-label="How Photos stays safe" onClick={() => setInfo(true)}>
             🛡️
           </button>
-          <button className="grid h-9 w-9 place-items-center rounded-full text-lg hover:bg-white/15" aria-label="Refresh" onClick={reload}>
-            🔄
-          </button>
-          <Link to="/photos/new" className="btn-primary btn-sm whitespace-nowrap">
+          <Link to="/new" className="btn-primary btn-sm hidden whitespace-nowrap sm:inline-flex">
             + Photo
           </Link>
         </div>
@@ -433,7 +422,18 @@ export default function Photos() {
         className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none]"
       >
         {shown.map((it, i) => (
-          <Slide key={it.key} item={it} eager={Math.abs(i - index) < 2} onHide={(what) => hide(it, what)} onOpenSnap={() => setOpenSnap(it)} />
+          <Slide
+            key={it.key}
+            item={it}
+            eager={Math.abs(i - index) < 2}
+            onHide={(what) => hide(it, what)}
+            onOpenSnap={() => setOpenSnap(it)}
+            showHint={!enlarged}
+            onEnlarge={() => {
+              setEnlarged(true)
+              save(ENLARGED_KEY, true)
+            }}
+          />
         ))}
 
         {status === 'no-checker' ? (
@@ -462,7 +462,7 @@ export default function Photos() {
             <div className="text-4xl">🎉</div>
             <h2 className="text-lg font-bold">You’re all caught up</h2>
             <p className="text-sm text-white/70">That’s everything from the last few days.</p>
-            <Link to="/photos/new" className="btn-primary mt-2">
+            <Link to="/new" className="btn-primary mt-2">
               Share a photo
             </Link>
           </TailSlide>

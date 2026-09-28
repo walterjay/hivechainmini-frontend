@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { Post } from './hive.ts'
-import { findImages, looksUnsafe, MAX_IMAGES, photoImages, rejectReason } from './photo-filters.ts'
+import { findImages, looksUnsafe, MAX_IMAGES, noiseReason, photoImages, rejectReason } from './photo-filters.ts'
 
 const PEAKD = 'https://files.peakd.com/file/peakd-hive/alice/AbC123/sunset.jpg'
 const HIVEIMG = 'https://images.hive.blog/DQmSaZTMYzpUFp9TGbxF7xxQWvNL9ofzQKaTw2A35VMRZnj/compose-1.jpg'
@@ -88,4 +88,15 @@ test('safety thresholds err on the side of hiding', () => {
   assert.equal(looksUnsafe({ Neutral: 0.6, Sexy: 0.36 }), true)
   assert.equal(looksUnsafe({ Neutral: 0.5, Sexy: 0.2, Porn: 0.13, Hentai: 0.12 }), true)
   assert.equal(looksUnsafe({}), false)
+})
+
+test('Snaps noise: game updates, word games and low reputation; plain text snaps pass', () => {
+  const text = snap({ body: 'Pumpkin cekodok for tea today', json_metadata: { app: 'peakd/2026.9.1' } })
+  assert.equal(noiseReason(text), null)
+  assert.equal(noiseReason(snap({ body: 'Unlocked "Fully Helped"', json_metadata: { app: 'hivegrove/1.0', tags: ['hivegrove'] } })), 'bot')
+  assert.equal(noiseReason(snap({ body: 'HiveWord 6/6', json_metadata: { app: 'hivesnaps/1.0', tags: ['hiveword'] } })), 'bot')
+  assert.equal(noiseReason(snap({ body: 'HiveWord 3/6 🟩🟩 Streak: 1 day #hiveword', json_metadata: { app: 'leothreads/0.3', tags: ['leofinance'] } })), 'bot')
+  assert.equal(noiseReason(snap({ body: 'Loving #photography today', json_metadata: { app: 'peakd' } })), null)
+  assert.equal(noiseReason(snap({ author_reputation: 12 })), 'low-reputation')
+  assert.equal(noiseReason(snap({ body: 'Watch till end! ▶ https://3speak.tv/watch?v=a/b' })), 'video')
 })

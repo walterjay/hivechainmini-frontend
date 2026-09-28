@@ -1,4 +1,5 @@
 import { getAccountPosts, getDiscussion, isNsfw, postKey, visible, type Post } from './hive'
+import { noiseReason } from './photo-filters'
 
 export interface ShortFormSource {
   key: string
@@ -58,7 +59,7 @@ async function containerReplies(
   const root = all[postKey(container)] ?? container
   return root.replies
     .map((k) => all[k])
-    .filter((p): p is Post => !!p && visible(p) && (showNsfw || !isNsfw(p)))
+    .filter((p): p is Post => !!p && visible(p) && (showNsfw || !isNsfw(p)) && !noiseReason(p))
     .map((p) => ({ ...p, source: source.key }))
 }
 

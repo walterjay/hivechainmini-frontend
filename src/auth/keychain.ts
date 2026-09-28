@@ -59,3 +59,22 @@ export function keychainBroadcast(account: string, ops: Operation[]): Promise<vo
     kc.requestBroadcast(account, ops, 'Posting', (r) => (r.success ? resolve() : reject(toError(r))), currentNode())
   })
 }
+
+/**
+ * Signs a photo for upload to images.hive.blog, which checks a posting-key
+ * signature over "ImageSigningChallenge" + the file bytes. Keychain turns a
+ * JSON-serialised Node Buffer back into raw bytes before hashing, which is how
+ * hive.blog itself sends images to Keychain.
+ */
+export function keychainSignImage(account: string, bytes: Uint8Array): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const kc = window.hive_keychain
+    if (!kc) return reject(new Error('Hive Keychain not found'))
+    const prefix = new TextEncoder().encode('ImageSigningChallenge')
+    const all = new Uint8Array(prefix.length + bytes.length)
+    all.set(prefix)
+    all.set(bytes, prefix.length)
+    const message = JSON.stringify({ type: 'Buffer', data: Array.from(all) })
+    kc.requestSignBuffer(account, message, 'Posting', (r) => (r.success ? resolve(String(r.result)) : reject(toError(r))), null, 'Upload a photo')
+  })
+}

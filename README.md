@@ -65,6 +65,10 @@ npm run build && npm run check:rewards
 
 This scans every file in `dist/` for reward fields (`pending_payout_value` and friends), HBD, Hive Power, and dollar amounts, and fails if it finds any. It runs automatically as part of `npm run deploy`.
 
+## Photos (prototype)
+
+A full-screen, swipe-up photo feed built from Snaps, Waves and photo posts. Every picture passes metadata filters and an on-device AI scan before it is shown. The design, measurements and safety layers are in [`docs/photos.md`](docs/photos.md). The filter rules have unit tests: `npm test`.
+
 ## How it works
 
 - **Reads** go over JSON-RPC to public nodes (`src/lib/rpc.ts`). A node that times out or errors moves to the back of the list, and the next one is tried. Feed calls are cached for 60 seconds.

@@ -11,6 +11,8 @@ const RULES: [RegExp, string][] = [
   [/expired|timeout|timed out/i, 'That took too long and timed out. Please try again.'],
   [/duplicate transaction/i, 'That was already sent.'],
   [/cannot reply|comment_cashout|paid out|archived/i, 'This conversation is closed for new replies.'],
+  [/upload limit|quota|too many uploads/i, "You've shared a lot of photos lately. Please try again tomorrow."],
+  [/Photo upload failed/i, "The photo couldn't be uploaded. Please try again in a moment."],
   [/fetch|network|unreachable|HTTP \d/i, "We couldn't reach the Hive network. Check your connection and try again."],
 ]
 

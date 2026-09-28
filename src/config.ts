@@ -2,8 +2,10 @@
 // Keep this file free of browser APIs: vite.config.ts imports it too.
 
 export const APP_NAME = 'Hive Chain Mini'
-/** Written into json_metadata.app on everything the app broadcasts. */
-export const APP_ID = 'hivechainmini/0.1'
+/** Set from package.json by vite.config.ts at build time; undefined when vite.config.ts itself loads this file. */
+declare const __APP_VERSION__: string | undefined
+/** Written into json_metadata.app on everything the app broadcasts, e.g. "hivechainmini/0.3.0". */
+export const APP_ID = `hivechainmini/${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'}`
 
 /**
  * Token values (payouts, rewards, prices) are never shown while this is false.

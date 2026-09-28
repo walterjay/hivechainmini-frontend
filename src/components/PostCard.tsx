@@ -8,7 +8,7 @@ import RewardInfo from './RewardInfo'
 
 export const postPath = (p: { author: string; permlink: string }) => `/p/${p.author}/${p.permlink}`
 
-export default function PostCard({ post, showCommunity = true, showFollow = true }: { post: Post; showCommunity?: boolean; showFollow?: boolean }) {
+export default function PostCard({ post, showCommunity = true, showFollow = false }: { post: Post; showCommunity?: boolean; showFollow?: boolean }) {
   const img = firstImage(post)
   const text = summary(post.body)
   return (

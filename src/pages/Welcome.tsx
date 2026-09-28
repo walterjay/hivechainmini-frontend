@@ -53,7 +53,7 @@ export default function Welcome() {
         ))}
       </fieldset>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <button className="btn-primary flex-1" onClick={() => done('/')}>
+        <button className="btn-primary flex-1" onClick={() => done('/posts')}>
           {picked.size ? `Start with ${picked.size} ${picked.size === 1 ? 'community' : 'communities'}` : 'Start exploring'}
         </button>
         <button className="btn-ghost flex-1" onClick={() => done('/communities')}>

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { APP_NAME } from '../config'
+import { requestRefresh } from '../lib/refresh'
 import { save } from '../lib/storage'
 import { useAuth } from '../state/auth'
 import Avatar from './Avatar'
@@ -22,72 +23,6 @@ function ThemeToggle() {
     >
       {dark ? '☀️' : '🌙'}
     </button>
-  )
-}
-
-function WriteMenu({ variant }: { variant: 'desktop' | 'mobile' }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const loc = useLocation()
-  useEffect(() => {
-    setOpen(false)
-  }, [loc.pathname])
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    const onClick = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('click', onClick)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('click', onClick)
-    }
-  }, [open])
-
-  const items = (
-    <>
-      <Link role="menuitem" to="/submit" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
-        📝 New post
-      </Link>
-      <Link role="menuitem" to="/snaps/new" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
-        📸 New snap
-      </Link>
-      <Link role="menuitem" to="/photos/new" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
-        🖼️ New photo
-      </Link>
-    </>
-  )
-
-  if (variant === 'mobile')
-    return (
-      <div className="relative flex-1" ref={ref}>
-        <button
-          className={`flex h-15 w-full flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${open ? 'text-brand' : 'text-muted'}`}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <span aria-hidden className="text-lg">✏️</span>Write
-        </button>
-        {open && (
-          <div role="menu" className="card absolute right-0 bottom-full z-40 mb-2 w-44 overflow-hidden p-1 shadow-lg">
-            {items}
-          </div>
-        )}
-      </div>
-    )
-
-  return (
-    <div className="relative hidden sm:block" ref={ref}>
-      <button className="btn-primary btn-sm" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        ✏️ Write
-      </button>
-      {open && (
-        <div role="menu" className="card absolute right-0 z-40 mt-2 w-44 overflow-hidden p-1 shadow-lg">
-          {items}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -142,8 +77,50 @@ const navCls = ({ isActive }: { isActive: boolean }) =>
 const tabCls = ({ isActive }: { isActive: boolean }) =>
   `flex h-15 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${isActive ? 'text-brand' : 'text-muted'}`
 
+interface Tab {
+  to: string
+  label: string
+  icon: string
+  /** The Posts tab also covers its sub-pages. */
+  match: (pathname: string) => boolean
+}
+
+const TABS: Tab[] = [
+  { to: '/', label: 'Snaps', icon: '📸', match: (p) => p === '/' },
+  { to: '/photos', label: 'Photos', icon: '🖼️', match: (p) => p === '/photos' },
+  { to: '/posts', label: 'Posts', icon: '📰', match: (p) => /^\/(?:posts|following|communities|welcome|c\/)/.test(p) },
+]
+
+/** Photos is heavy (safety model), so fetch it early when the user heads for its tab. */
+function preloadPhotos() {
+  import('../pages/Photos')
+  import('../lib/safety').then((m) => m.loadSafetyModel().catch(() => {}))
+}
+
+/** A main tab. Tapping the one you're already on refreshes it instead of doing nothing. */
+function TabLink({ tab, className, children }: { tab: Tab; className: (s: { isActive: boolean }) => string; children?: ReactNode }) {
+  const { pathname } = useLocation()
+  const active = tab.match(pathname)
+  return (
+    <Link
+      to={tab.to}
+      aria-current={active ? 'page' : undefined}
+      className={className({ isActive: active })}
+      onPointerEnter={tab.to === '/photos' ? preloadPhotos : undefined}
+      onClick={(e) => {
+        if (pathname !== tab.to) return
+        e.preventDefault()
+        requestRefresh()
+      }}
+    >
+      {children}
+      {tab.label}
+    </Link>
+  )
+}
+
 export default function Layout() {
-  const { account } = useAuth()
+  const { account, ensureLogin } = useAuth()
   const { pathname } = useLocation()
   const width = pathname.startsWith('/p/') ? 'max-w-7xl' : 'max-w-4xl'
   // Photos is a full-screen viewer: it draws its own background and has no footer.
@@ -152,6 +129,13 @@ export default function Layout() {
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+  // Get Photos ready in the background after the first screen settles, unless data is precious.
+  useEffect(() => {
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+    if (conn?.saveData || /2g|3g/.test(conn?.effectiveType ?? '')) return
+    const t = window.setTimeout(preloadPhotos, 4000)
+    return () => clearTimeout(t)
+  }, [])
   return (
     <div className="min-h-dvh pb-20 sm:pb-0">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2 dark:focus:bg-zinc-900">
@@ -164,18 +148,14 @@ export default function Layout() {
             {APP_NAME}
           </Link>
           <nav className="hidden items-center gap-1 sm:flex" aria-label="Main">
-            <NavLink to="/snaps" className={navCls}>
-              Snaps
-            </NavLink>
-            <NavLink to="/photos" className={navCls}>
-              Photos
-            </NavLink>
-            <NavLink to="/" end className={navCls}>
-              Posts
-            </NavLink>
+            {TABS.map((t) => (
+              <TabLink key={t.to} tab={t} className={navCls} />
+            ))}
           </nav>
           <div className="ml-auto flex items-center gap-1">
-            <WriteMenu variant="desktop" />
+            <Link to="/new" className="btn-primary btn-sm hidden sm:inline-flex">
+              ✏️ Write
+            </Link>
             <ThemeToggle />
             <NotificationBell />
             <AccountMenu />
@@ -196,20 +176,25 @@ export default function Layout() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden dark:border-zinc-800 dark:bg-zinc-950/95"
       >
-        <NavLink to="/" end className={tabCls}>
-          <span aria-hidden className="text-lg">🏠</span>Posts
+        {TABS.map((t) => (
+          <TabLink key={t.to} tab={t} className={tabCls}>
+            <span aria-hidden className="text-lg">
+              {t.icon}
+            </span>
+          </TabLink>
+        ))}
+        <NavLink to="/new" className={tabCls}>
+          <span aria-hidden className="text-lg">✏️</span>Write
         </NavLink>
-        <NavLink to="/snaps" className={tabCls}>
-          <span aria-hidden className="text-lg">📸</span>Snaps
-        </NavLink>
-        <NavLink to="/photos" className={tabCls}>
-          <span aria-hidden className="text-lg">🖼️</span>Photos
-        </NavLink>
-        <WriteMenu variant="mobile" />
-        <NavLink to={account ? `/u/${account}` : '/following'} className={tabCls}>
-          <span aria-hidden className="text-lg">🙂</span>
-          {account ? 'Me' : 'Following'}
-        </NavLink>
+        {account ? (
+          <NavLink to={`/u/${account}`} className={tabCls}>
+            <span aria-hidden className="text-lg">🙂</span>Me
+          </NavLink>
+        ) : (
+          <button className={tabCls({ isActive: false })} onClick={() => ensureLogin('Log in to post, reply and follow people.')}>
+            <span aria-hidden className="text-lg">🙂</span>Log in
+          </button>
+        )}
       </nav>
     </div>
   )

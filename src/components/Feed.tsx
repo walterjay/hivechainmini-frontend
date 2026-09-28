@@ -18,7 +18,7 @@ export default function Feed({
   loadPage,
   empty,
   showCommunity = true,
-  showFollow = true,
+  showFollow = false,
 }: {
   resetKey: string
   loadPage: (first: boolean) => Promise<FeedPage>

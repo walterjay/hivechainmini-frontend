@@ -30,7 +30,7 @@ const NOT_A_PHOTO = /\.gif(?:[?#]|$)|giphy\.com|tenor\.com|klipy\.com|3speak\.|y
 const VIDEO_IN_BODY = /3speak\.tv\/(?:watch|embed)|play\.3speak\.tv|youtube\.com\/(?:watch|embed|shorts)|youtu\.be\/|\.mp4\b/i
 
 /** Games and auto-posters that fill snaps with screenshots and status cards. */
-const BOT_APPS = /^(?:hivegrove|mydempire|zingit|scrobblelife|slothbuzz|hivesuite|terracore|actifit)\b/i
+const BOT_APPS = /^(?:hivegrove|mydempire|zingit|scrobblelife|slothbuzz|hivesuite|terracore|actifit|hiveword)\b/i
 const BOT_TAGS = new Set([
   'hivegrove',
   'mydempire',
@@ -45,6 +45,7 @@ const BOT_TAGS = new Set([
   'holozing',
   'dcrops',
   'actifit',
+  'hiveword',
 ])
 
 /** Default file names of screenshots; in snaps these are almost never photos. */
@@ -77,12 +78,30 @@ export function findImages(p: Pick<Post, 'body' | 'json_metadata'>): FoundImage[
   return [...byUrl.values()].filter((i) => i.url.startsWith('https://') && !NOT_A_PHOTO.test(i.url))
 }
 
+/** Metadata tags plus #hashtags written in the text (some apps only do the latter). */
 function tagsOf(p: Post): string[] {
   const t = p.json_metadata?.tags
-  return Array.isArray(t) ? t.filter((x): x is string => typeof x === 'string').map((x) => x.toLowerCase()) : []
+  const meta = Array.isArray(t) ? t.filter((x): x is string => typeof x === 'string') : []
+  const inText = [...(p.body ?? '').matchAll(/(?:^|\s)#([a-z0-9-]+)/gi)].map((m) => m[1])
+  return [...meta, ...inText].map((x) => x.toLowerCase())
 }
 
-export type RejectReason = 'low-reputation' | 'bot' | 'video' | 'no-photo'
+export type NoiseReason = 'low-reputation' | 'bot' | 'video'
+export type RejectReason = NoiseReason | 'no-photo'
+
+/**
+ * Why a short post is noise rather than something a person wrote for
+ * people: flagged accounts, game and auto-poster updates, and video promos
+ * (which the app can't play). Used by both Snaps and Photos.
+ */
+export function noiseReason(p: Post): NoiseReason | null {
+  if ((p.author_reputation ?? 0) < MIN_REPUTATION) return 'low-reputation'
+  const app = p.json_metadata?.app
+  if (typeof app === 'string' && BOT_APPS.test(app)) return 'bot'
+  if (tagsOf(p).some((t) => BOT_TAGS.has(t))) return 'bot'
+  if (VIDEO_IN_BODY.test(p.body ?? '')) return 'video'
+  return null
+}
 
 /**
  * Why a post can't go into Photos, or null if it can (still pending the
@@ -90,13 +109,7 @@ export type RejectReason = 'low-reputation' | 'bot' | 'video' | 'no-photo'
  * communities have muted are handled by hive.ts `visible` / `isNsfw`.
  */
 export function rejectReason(p: Post): RejectReason | null {
-  if ((p.author_reputation ?? 0) < MIN_REPUTATION) return 'low-reputation'
-  const app = p.json_metadata?.app
-  if (typeof app === 'string' && BOT_APPS.test(app)) return 'bot'
-  if (tagsOf(p).some((t) => BOT_TAGS.has(t))) return 'bot'
-  if (VIDEO_IN_BODY.test(p.body ?? '')) return 'video'
-  if (photoImages(p).length === 0) return 'no-photo'
-  return null
+  return noiseReason(p) ?? (photoImages(p).length === 0 ? 'no-photo' : null)
 }
 
 /** The pictures to show for a post: trusted hosts only, screenshots dropped from snaps. */

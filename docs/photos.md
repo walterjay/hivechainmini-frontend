@@ -54,8 +54,9 @@ The rest of the app does not load it.
 
 ## What was built
 
-- `/photos`: full-screen vertical feed with swipe carousels, filter chips (All / Everyday / Photography,
-  meaning photo snaps vs. photo posts), upvote, comments, share, hide, and a 🛡️ panel explaining the checks.
+- `/photos`: full-screen vertical feed with swipe carousels, upvote, comments, share, hide, and a 🛡️ panel
+  explaining the checks. It mixes photo snaps and photo posts; a snaps-vs-posts filter was tried and removed
+  (2026-09-28) because the difference wasn't clear to people.
 - Tap a photo to open it full screen: swipe or use the arrows between photos, tap to zoom in where you tapped,
   drag to look around, tap again (or Esc) to zoom out. A clear **Read the full post** button (or **Open the snap &
   replies** for snaps) sits under every caption and in the full-screen view.

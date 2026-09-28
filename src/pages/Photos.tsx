@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import Avatar from '../components/Avatar'
 import Dialog from '../components/Dialog'
 import FollowButton from '../components/FollowButton'
@@ -9,7 +9,7 @@ import { postPath } from '../components/PostCard'
 import VoteButton from '../components/VoteButton'
 import { IMAGE_PROXY } from '../config'
 import { MIN_REPUTATION } from '../lib/photo-filters'
-import { createPhotoFeed, type PhotoFilter, type PhotoItem } from '../lib/photos'
+import { createPhotoFeed, type PhotoItem } from '../lib/photos'
 import { invalidateCache } from '../lib/rpc'
 import { useRefresh } from '../lib/refresh'
 import { checkImage, loadSafetyModel } from '../lib/safety'
@@ -21,13 +21,6 @@ import { useToast } from '../state/toast'
 
 type Status = 'loading' | 'ready' | 'error' | 'no-checker'
 
-const FILTERS: { id: PhotoFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  // Snaps are casual phone pictures with a line of text; posts are curated photography with a story.
-  { id: 'snaps', label: 'Everyday' },
-  { id: 'posts', label: 'Photography' },
-]
-
 const HIDDEN_KEY = 'hh.photos.hidden'
 const ENLARGED_KEY = 'hh.photos.enlarged'
 interface Hidden {
@@ -36,7 +29,7 @@ interface Hidden {
 }
 
 /**
- * One feed (per filter and viewer) kept in memory for the whole visit, so
+ * One feed (per viewer) kept in memory for the whole visit, so
  * leaving Photos to open a post and coming back lands on the same photo in the
  * same list. It only starts over when the user taps refresh or reloads the page.
  */
@@ -55,11 +48,11 @@ interface FeedSession {
 
 const sessions = new Map<string, FeedSession>()
 
-function sessionFor(filter: PhotoFilter, observer: string): FeedSession {
-  const key = `${filter}|${observer}`
+function sessionFor(observer: string): FeedSession {
+  const key = observer
   let s = sessions.get(key)
   if (!s) {
-    s = { key, feed: createPhotoFeed(filter, observer), items: [], status: 'loading', done: false, busy: false, heldBack: 0, index: 0, listeners: new Set() }
+    s = { key, feed: createPhotoFeed(observer), items: [], status: 'loading', done: false, busy: false, heldBack: 0, index: 0, listeners: new Set() }
     sessions.set(key, s)
   }
   return s
@@ -108,10 +101,10 @@ async function pump(s: FeedSession) {
   }
 }
 
-function usePhotoFeed(filter: PhotoFilter, observer: string) {
+function usePhotoFeed(observer: string) {
   const [attempt, setAttempt] = useState(0)
   // `attempt` makes this pick up the fresh session after a refresh.
-  const session = useMemo(() => sessionFor(filter, observer), [filter, observer, attempt])
+  const session = useMemo(() => sessionFor(observer), [observer, attempt])
   const [, rerender] = useReducer((n: number) => n + 1, 0)
 
   useEffect(() => {
@@ -358,9 +351,7 @@ export default function Photos() {
   useTitle('Photos')
   const { account } = useAuth()
   const toast = useToast()
-  const [params, setParams] = useSearchParams()
-  const filter = FILTERS.find((f) => f.id === params.get('from'))?.id ?? 'all'
-  const { session, more, reload } = usePhotoFeed(filter, account ?? '')
+  const { session, more, reload } = usePhotoFeed(account ?? '')
   const { items, status, done, busy, heldBack } = session
   const [hidden, setHidden] = useState<Hidden>(() => load(HIDDEN_KEY, { people: [], posts: [] }))
   const [info, setInfo] = useState(false)
@@ -408,26 +399,9 @@ export default function Photos() {
     toast(what === 'post' ? 'Photo hidden.' : `You won’t see photos from @${item.post.author} here anymore.`)
   }
 
-  const chip = (on: boolean) =>
-    `rounded-full px-3.5 py-1.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-white ${
-      on ? 'bg-white text-zinc-900' : 'text-white/85 hover:bg-white/15'
-    }`
-
   return (
     <div className="fixed inset-x-0 top-14 bottom-[calc(3.75rem+1px+env(safe-area-inset-bottom))] bg-zinc-950 sm:bottom-0">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-1 bg-gradient-to-b from-black/60 to-transparent px-3 pt-3 pb-6">
-        <div className="pointer-events-auto flex gap-1" role="group" aria-label="Show">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              className={chip(filter === f.id)}
-              aria-pressed={filter === f.id}
-              onClick={() => setParams(f.id === 'all' ? {} : { from: f.id }, { replace: true })}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
         <div className="pointer-events-auto ml-auto flex items-center gap-1">
           <button className="grid h-9 w-9 place-items-center rounded-full text-lg hover:bg-white/15" aria-label="How Photos stays safe" onClick={() => setInfo(true)}>
             🛡️

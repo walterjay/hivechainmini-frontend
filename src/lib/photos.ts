@@ -1,8 +1,6 @@
 import { getAccountPosts, getCommunity, getDiscussion, getRankedPosts, isNsfw, postKey, summary, visible, type Post } from './hive'
 import { photoImages, rejectReason } from './photo-filters'
 
-export type PhotoFilter = 'all' | 'snaps' | 'posts'
-
 export interface PhotoItem {
   key: string
   post: Post
@@ -106,11 +104,10 @@ function toItem(p: Post, via: string): PhotoItem {
  * metadata rules. Call `next()` for more; the images still need the on-device
  * check before they're shown.
  */
-export function createPhotoFeed(filter: PhotoFilter, observer: string) {
+export function createPhotoFeed(observer: string) {
   const streams: { s: Stream; via: (p: Post) => string }[] = []
-  if (filter !== 'posts') for (const src of SNAP_SOURCES) streams.push({ s: snapStream(src, observer), via: () => '' })
-  if (filter !== 'snaps')
-    for (const tag of POST_TAGS) streams.push({ s: tagStream(tag, observer), via: (p) => `📷 ${p.community_title || `#${tag}`}` })
+  for (const src of SNAP_SOURCES) streams.push({ s: snapStream(src, observer), via: () => '' })
+  for (const tag of POST_TAGS) streams.push({ s: tagStream(tag, observer), via: (p) => `📷 ${p.community_title || `#${tag}`}` })
 
   const seen = new Set<string>()
   let buffer: PhotoItem[] = []

@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import Avatar from '../components/Avatar'
-import Comments, { type Thread } from '../components/Comments'
+import Comments from '../components/Comments'
 import FollowButton from '../components/FollowButton'
 import Markdown from '../components/Markdown'
 import RewardInfo from '../components/RewardInfo'
 import { EmptyState, ErrorState, Spinner } from '../components/Status'
 import SuggestedReads from '../components/SuggestedReads'
 import VoteButton from '../components/VoteButton'
-import { getDiscussion, isNsfw, postKey, timeAgo, type Post } from '../lib/hive'
-import { invalidateCache, RpcError } from '../lib/rpc'
+import { isNsfw, timeAgo, type Post } from '../lib/hive'
+import { invalidateCache } from '../lib/rpc'
 import { SHORT_FORM_SOURCES } from '../lib/shortform'
+import { useDiscussion } from '../lib/useDiscussion'
 import { useTitle } from '../lib/useTitle'
 import { useAuth } from '../state/auth'
 import { usePrefs } from '../state/prefs'
@@ -47,62 +48,26 @@ export default function PostPage() {
   const [revealNsfw, setRevealNsfw] = useState(false)
   const { hash, state: navState } = useLocation()
   const justPosted = !!(navState as { justPosted?: boolean } | null)?.justPosted
-  const [all, setAll] = useState<Record<string, Post> | null>(null)
-  const [state, setState] = useState<'loading' | 'error' | 'missing' | 'ok'>('loading')
-  const [extra, setExtra] = useState<Record<string, Post[]>>({})
-  const [attempt, setAttempt] = useState(0)
-  const key = `${author}/${permlink}`
-  const root = all?.[key]
+  const { root, all, thread, state, attempt, retry } = useDiscussion(author, permlink, account ?? '')
   useTitle(root?.title || (root ? `Comment by @${root.author}` : undefined))
-
-  useEffect(() => {
-    let off = false
-    setState('loading')
-    setExtra({})
-    getDiscussion(author, permlink, account ?? '')
-      .then((r) => {
-        if (off) return
-        setAll(r)
-        setState(r?.[key] ? 'ok' : 'missing')
-      })
-      .catch((e) => !off && setState(e instanceof RpcError ? 'missing' : 'error'))
-    return () => {
-      off = true
-    }
-  }, [author, permlink, account, key, attempt])
 
   // A brand-new post can take a few seconds to be indexed: keep checking briefly.
   useEffect(() => {
     if (state !== 'missing' || !justPosted || attempt >= 6) return
     const t = setTimeout(() => {
       invalidateCache(permlink)
-      setAttempt((a) => a + 1)
+      retry()
     }, 3000)
     return () => clearTimeout(t)
-  }, [state, justPosted, attempt, permlink])
+  }, [state, justPosted, attempt, permlink, retry])
 
   useEffect(() => {
     if (state === 'ok' && hash === '#comments') document.getElementById('comments')?.scrollIntoView()
   }, [state, hash])
 
-  const add = useCallback((c: Post) => {
-    const parent = `${c.parent_author}/${c.parent_permlink}`
-    // Upsert: the same comment arrives again (with a url) once it's confirmed.
-    setExtra((x) => {
-      const list = x[parent] ?? []
-      const i = list.findIndex((m) => postKey(m) === postKey(c))
-      return { ...x, [parent]: i >= 0 ? list.map((m, j) => (j === i ? c : m)) : [c, ...list] }
-    })
-  }, [])
-  const remove = useCallback((c: Post) => {
-    const parent = `${c.parent_author}/${c.parent_permlink}`
-    setExtra((x) => ({ ...x, [parent]: (x[parent] ?? []).filter((m) => postKey(m) !== postKey(c)) }))
-  }, [])
-  const thread = useMemo<Thread>(() => ({ all: all ?? {}, extra, add, remove }), [all, extra, add, remove])
-
   if (state === 'loading' || (state === 'missing' && justPosted && attempt < 6))
     return <Spinner label={justPosted ? 'Your post is on its way… 🚀' : 'Opening post…'} />
-  if (state === 'error') return <ErrorState onRetry={() => setAttempt((a) => a + 1)} />
+  if (state === 'error') return <ErrorState onRetry={retry} />
   if (state === 'missing' || !root)
     return (
       <EmptyState emoji="🫥" title="We couldn’t find that post">

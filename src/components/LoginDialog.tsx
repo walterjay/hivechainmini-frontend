@@ -5,8 +5,7 @@ import { hasKeychain, keychainLogin } from '../auth/keychain'
 import type { Session } from '../auth/types'
 import { getProfile } from '../lib/hive'
 import { friendlyError, isCancel } from '../lib/errors'
-
-const isMobile = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+import { isMobile } from '../lib/device'
 const ACCOUNT_RE = /^[a-z][a-z0-9-.]{2,15}$/
 
 export default function LoginDialog({ reason, onDone }: { reason: string; onDone: (s: Session | null) => void }) {

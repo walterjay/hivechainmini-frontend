@@ -86,8 +86,8 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { to: '/', label: 'Snaps', icon: '📸', match: (p) => p === '/' },
-  { to: '/photos', label: 'Photos', icon: '🖼️', match: (p) => p === '/photos' },
+  { to: '/', label: 'Snaps', icon: '💬', match: (p) => p === '/' },
+  { to: '/photos', label: 'Photos', icon: '📷', match: (p) => p === '/photos' },
   { to: '/posts', label: 'Posts', icon: '📰', match: (p) => /^\/(?:posts|following|communities|welcome|c\/)/.test(p) },
 ]
 
@@ -188,11 +188,16 @@ export default function Layout() {
         </NavLink>
         {account ? (
           <NavLink to={`/u/${account}`} className={tabCls}>
-            <span aria-hidden className="text-lg">🙂</span>Me
+            {({ isActive }) => (
+              <>
+                <Avatar account={account} size={24} className={isActive ? 'ring-2 ring-brand' : ''} />
+                Me
+              </>
+            )}
           </NavLink>
         ) : (
           <button className={tabCls({ isActive: false })} onClick={() => ensureLogin('Log in to post, reply and follow people.')}>
-            <span aria-hidden className="text-lg">🙂</span>Log in
+            <span aria-hidden className="text-lg">👤</span>Log in
           </button>
         )}
       </nav>

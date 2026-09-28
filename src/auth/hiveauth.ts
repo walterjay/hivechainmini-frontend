@@ -23,20 +23,42 @@ interface HasMessage {
   timeout?: number
 }
 
-/** Open a socket, wait for "connected", then run `send` and hand every later message to `onMsg`. */
+/** Wait until the page is on screen again (phones pause sockets while the wallet app is open). */
+function whenVisible() {
+  if (document.visibilityState === 'visible') return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const on = () => {
+      if (document.visibilityState !== 'visible') return
+      document.removeEventListener('visibilitychange', on)
+      resolve()
+    }
+    document.addEventListener('visibilitychange', on)
+  })
+}
+
+/**
+ * Open a socket, wait for "connected", then run `send` and hand every later message to `onMsg`.
+ * If the socket drops after the relay gave us a request id (typical on phones: the browser
+ * is paused while the user approves in the wallet app), reconnect and re-attach to that
+ * request with attach_req, so an approval made meanwhile isn't lost.
+ */
 function session<T>(
   send: (ws: WebSocket) => void,
   onMsg: (m: HasMessage, done: (v: T) => void, fail: (e: Error) => void) => void,
   signal?: AbortSignal,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(HIVEAUTH_HOST)
+    let ws: WebSocket
     let settled = false
     let timer: ReturnType<typeof setTimeout> | undefined
+    let pending = '' // uuid of the request the relay is holding for us
+    let expire = 0
+    let retries = 0
     const finish = (fn: () => void) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
+      ws.onclose = null
       ws.close()
       fn()
     }
@@ -45,27 +67,54 @@ function session<T>(
     signal?.addEventListener('abort', () => fail(new Error('Request cancelled')))
     // Safety net; the real expiry comes from the *_wait message.
     timer = setTimeout(() => fail(new Error('HiveAuth request timed out')), 180_000)
-    ws.onerror = () => fail(new Error("Couldn't reach the HiveAuth service"))
-    ws.onclose = () => fail(new Error('HiveAuth connection closed'))
-    ws.onmessage = (ev) => {
-      let m: HasMessage
-      try {
-        m = JSON.parse(ev.data)
-      } catch {
-        return
-      }
-      if (m.cmd === 'connected') {
-        if (m.protocol !== undefined && !SUPPORTED_PROTOCOLS.includes(m.protocol)) return fail(new Error('Unsupported HiveAuth version'))
-        send(ws)
-        return
-      }
-      if (m.expire) {
-        clearTimeout(timer)
-        const ms = m.expire - Date.now()
-        timer = setTimeout(() => fail(new Error('HiveAuth request expired')), Math.max(ms, 5000))
-      }
-      onMsg(m, done, fail)
+
+    const reconnect = async () => {
+      if (settled) return
+      if (!pending || retries >= 8 || (expire && Date.now() > expire)) return fail(new Error('HiveAuth connection closed'))
+      retries++
+      await whenVisible()
+      await new Promise((r) => setTimeout(r, Math.min(500 * retries, 3000)))
+      if (!settled) open(true)
     }
+
+    const open = (attach: boolean) => {
+      ws = new WebSocket(HIVEAUTH_HOST)
+      ws.onerror = () => {
+        if (!pending) fail(new Error("Couldn't reach the HiveAuth service"))
+      }
+      ws.onclose = () => {
+        if (!pending) fail(new Error('HiveAuth connection closed'))
+        else reconnect()
+      }
+      ws.onmessage = (ev) => {
+        let m: HasMessage
+        try {
+          m = JSON.parse(ev.data)
+        } catch {
+          return
+        }
+        if (m.cmd === 'connected') {
+          if (m.protocol !== undefined && !SUPPORTED_PROTOCOLS.includes(m.protocol)) return fail(new Error('Unsupported HiveAuth version'))
+          if (attach) ws.send(JSON.stringify({ cmd: 'attach_req', uuid: pending }))
+          else send(ws)
+          return
+        }
+        if (m.cmd === 'attach_ack') {
+          retries = 0
+          return
+        }
+        if (m.cmd === 'attach_nack' && m.uuid === pending) return fail(new Error('HiveAuth request expired'))
+        if (m.uuid && m.cmd.endsWith('_wait')) pending = m.uuid
+        if (m.expire) {
+          expire = m.expire
+          clearTimeout(timer)
+          const ms = m.expire - Date.now()
+          timer = setTimeout(() => fail(new Error('HiveAuth request expired')), Math.max(ms, 5000))
+        }
+        onMsg(m, done, fail)
+      }
+    }
+    open(false)
   })
 }
 
@@ -117,14 +166,14 @@ function safeDec(s: string, key: string) {
   }
 }
 
+export interface SignWait {
+  uuid: string
+  /** Brings the wallet app (Hive Keychain mobile) to the front, where the request is waiting. */
+  link: string
+}
+
 /** Ask the wallet app to sign and broadcast operations with the posting key. */
-export function hiveAuthBroadcast(
-  account: string,
-  hasKey: string,
-  token: string | undefined,
-  ops: Operation[],
-  onWait?: (uuid: string) => void,
-) {
+export function hiveAuthBroadcast(account: string, hasKey: string, token: string | undefined, ops: Operation[], onWait?: (w: SignWait) => void) {
   let uuid = ''
   return session<void>(
     (ws) => {
@@ -134,7 +183,10 @@ export function hiveAuthBroadcast(
     (m, done, fail) => {
       if (m.cmd === 'sign_wait' && m.uuid) {
         uuid = m.uuid
-        onWait?.(uuid)
+        // Any has:// link opens Keychain mobile; it then picks the request up from the relay.
+        // No keys in here: the payload only says which request to look at.
+        const payload = btoa(JSON.stringify({ account, uuid, host: HIVEAUTH_HOST }))
+        onWait?.({ uuid, link: `has://sign_req/${payload}` })
       } else if (m.uuid !== uuid) {
         return
       } else if (m.cmd === 'sign_ack') {

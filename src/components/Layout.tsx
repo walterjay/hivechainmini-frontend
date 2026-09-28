@@ -52,6 +52,9 @@ function WriteMenu({ variant }: { variant: 'desktop' | 'mobile' }) {
       <Link role="menuitem" to="/snaps/new" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
         📸 New snap
       </Link>
+      <Link role="menuitem" to="/photos/new" className="block rounded-2xl px-4 py-2.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        🖼️ New photo
+      </Link>
     </>
   )
 
@@ -59,7 +62,7 @@ function WriteMenu({ variant }: { variant: 'desktop' | 'mobile' }) {
     return (
       <div className="relative flex-1" ref={ref}>
         <button
-          className={`flex w-full flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${open ? 'text-brand' : 'text-muted'}`}
+          className={`flex h-15 w-full flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${open ? 'text-brand' : 'text-muted'}`}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
@@ -135,13 +138,16 @@ function AccountMenu() {
 const navCls = ({ isActive }: { isActive: boolean }) =>
   `rounded-full px-4 py-2 text-sm font-semibold transition ${isActive ? 'bg-zinc-200 dark:bg-zinc-800' : 'text-muted hover:bg-zinc-100 dark:hover:bg-zinc-900'}`
 
+// Fixed height: the full-screen Photos viewer sits exactly on top of this bar.
 const tabCls = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${isActive ? 'text-brand' : 'text-muted'}`
+  `flex h-15 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${isActive ? 'text-brand' : 'text-muted'}`
 
 export default function Layout() {
   const { account } = useAuth()
   const { pathname } = useLocation()
   const width = pathname.startsWith('/p/') ? 'max-w-7xl' : 'max-w-4xl'
+  // Photos is a full-screen viewer: it draws its own background and has no footer.
+  const immersive = pathname === '/photos'
   // Braces matter: scrollTo returns a Promise in newer browsers, which React would treat as a cleanup.
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -161,6 +167,9 @@ export default function Layout() {
             <NavLink to="/snaps" className={navCls}>
               Snaps
             </NavLink>
+            <NavLink to="/photos" className={navCls}>
+              Photos
+            </NavLink>
             <NavLink to="/" end className={navCls}>
               Posts
             </NavLink>
@@ -176,11 +185,13 @@ export default function Layout() {
       <main id="main" className={`mx-auto px-4 py-5 ${width}`}>
         <Outlet />
       </main>
-      <footer className={`mx-auto px-4 pb-4 text-center text-xs text-muted ${width}`}>
-        <Link to="/legal" className="hover:underline">
-          Legal notice
-        </Link>
-      </footer>
+      {!immersive && (
+        <footer className={`mx-auto px-4 pb-4 text-center text-xs text-muted ${width}`}>
+          <Link to="/legal" className="hover:underline">
+            Legal notice
+          </Link>
+        </footer>
+      )}
       <nav
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden dark:border-zinc-800 dark:bg-zinc-950/95"
@@ -190,6 +201,9 @@ export default function Layout() {
         </NavLink>
         <NavLink to="/snaps" className={tabCls}>
           <span aria-hidden className="text-lg">📸</span>Snaps
+        </NavLink>
+        <NavLink to="/photos" className={tabCls}>
+          <span aria-hidden className="text-lg">🖼️</span>Photos
         </NavLink>
         <WriteMenu variant="mobile" />
         <NavLink to={account ? `/u/${account}` : '/following'} className={tabCls}>

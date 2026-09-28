@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import Avatar from '../components/Avatar'
 import Dialog from '../components/Dialog'
 import FollowButton from '../components/FollowButton'
+import PhotoLightbox, { fullPostLabel } from '../components/PhotoLightbox'
 import { postPath } from '../components/PostCard'
 import VoteButton from '../components/VoteButton'
 import { IMAGE_PROXY } from '../config'
@@ -169,6 +170,7 @@ function Slide({ item, eager, onHide }: { item: PhotoItem; eager: boolean; onHid
   const toast = useToast()
   const [pic, setPic] = useState(0)
   const [expanded, setExpanded] = useState(false)
+  const [viewing, setViewing] = useState<number | null>(null)
   const p = item.post
   const alt = item.title || item.caption.slice(0, 120) || `Photo by @${p.author}`
 
@@ -201,14 +203,16 @@ function Slide({ item, eager, onHide }: { item: PhotoItem; eager: boolean; onHid
                 referrerPolicy="no-referrer"
                 className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl"
               />
-              <img
-                src={`${IMAGE_PROXY}/1080x0/${url}`}
-                alt={item.images.length > 1 ? `${alt} (${i + 1} of ${item.images.length})` : alt}
-                loading={eager && i === 0 ? 'eager' : 'lazy'}
-                decoding="async"
-                referrerPolicy="no-referrer"
-                className="relative h-full w-full object-contain"
-              />
+              <button className="relative block h-full w-full cursor-zoom-in" aria-label="View photo full screen" onClick={() => setViewing(i)}>
+                <img
+                  src={`${IMAGE_PROXY}/1080x0/${url}`}
+                  alt={item.images.length > 1 ? `${alt} (${i + 1} of ${item.images.length})` : alt}
+                  loading={eager && i === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-contain"
+                />
+              </button>
             </div>
           ))}
         </div>
@@ -246,7 +250,19 @@ function Slide({ item, eager, onHide }: { item: PhotoItem; eager: boolean; onHid
               {item.caption}
             </button>
           )}
+          <Link
+            to={postPath(p)}
+            className="pointer-events-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-white"
+          >
+            {fullPostLabel(item)} →
+          </Link>
         </div>
+
+        <span className="pointer-events-none absolute top-16 right-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur" aria-hidden>
+          ⤢ Tap to enlarge
+        </span>
+
+        {viewing !== null && <PhotoLightbox item={item} start={viewing} onClose={() => setViewing(null)} />}
 
         <div className="absolute right-3 bottom-6 flex flex-col items-center gap-4 text-white">
           <VoteButton post={p} overlay />

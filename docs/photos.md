@@ -56,6 +56,9 @@ The rest of the app does not load it.
 
 - `/photos`: full-screen vertical feed with swipe carousels, filter chips (All / Snaps / Posts), upvote,
   comments, share, hide, and a 🛡️ panel explaining the checks.
+- Tap a photo to open it full screen: swipe or use the arrows between photos, tap to zoom in where you tapped,
+  drag to look around, tap again (or Esc) to zoom out. A clear **Read the full post** button (or **Open the snap &
+  replies** for snaps) sits under every caption and in the full-screen view.
 - The feed stays as you left it for the whole visit: open a post, come back, and you're on the same photo.
   🔄 (or reloading the page) starts fresh.
 - `/photos/new`: pick a photo → it's resized to 1600 px and re-encoded (which removes GPS location data) →

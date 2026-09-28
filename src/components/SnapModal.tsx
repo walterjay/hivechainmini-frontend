@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type MouseEvent } from 'react'
 import { Link } from 'react-router'
 import { timeAgo } from '../lib/hive'
 import { useDiscussion } from '../lib/useDiscussion'
@@ -10,6 +10,13 @@ import Markdown from './Markdown'
 import RewardInfo from './RewardInfo'
 import { EmptyState, ErrorState, Spinner } from './Status'
 import VoteButton from './VoteButton'
+
+/** Left-click opens the item in the modal; a modified/middle/right click behaves like a normal link. */
+export function openInModal(e: MouseEvent, onOpen: () => void) {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+  e.preventDefault()
+  onOpen()
+}
 
 /** A snap opened over the feed instead of navigating away, so closing it resumes right where you were. */
 export default function SnapModal({ author, permlink, onClose }: { author: string; permlink: string; onClose: () => void }) {

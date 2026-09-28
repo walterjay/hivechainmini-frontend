@@ -68,13 +68,20 @@ async function checkUrl(model: NSFWJS, url: string): Promise<boolean> {
   const img = new Image()
   img.crossOrigin = 'anonymous'
   img.referrerPolicy = 'no-referrer'
-  img.src = `${IMAGE_PROXY}/320x0/${url}`
-  // A stalled download would otherwise hold up the whole queue.
-  let timer = 0
-  await Promise.race([
-    img.decode().finally(() => clearTimeout(timer)),
-    new Promise((_, reject) => (timer = window.setTimeout(() => reject(new Error('Image timed out')), IMAGE_TIMEOUT_MS))),
-  ])
+  // The load event, not img.decode(): decode() never settles while the page isn't being rendered.
+  // The timeout stops a stalled download from holding up the whole queue.
+  await new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('Image timed out')), IMAGE_TIMEOUT_MS)
+    img.onload = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    img.onerror = () => {
+      clearTimeout(timer)
+      reject(new Error('Image failed to load'))
+    }
+    img.src = `${IMAGE_PROXY}/320x0/${url}`
+  })
   return !looksUnsafe(await scores(model, img))
 }
 

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import Avatar from '../components/Avatar'
 import Dialog from '../components/Dialog'
 import FollowButton from '../components/FollowButton'
 import PhotoLightbox, { fullPostLabel } from '../components/PhotoLightbox'
+import SnapModal, { openInModal } from '../components/SnapModal'
 import { postPath } from '../components/PostCard'
 import VoteButton from '../components/VoteButton'
 import { IMAGE_PROXY } from '../config'
@@ -166,12 +167,24 @@ function MoreMenu({ item, onHide }: { item: PhotoItem; onHide: (what: 'post' | '
   )
 }
 
-function Slide({ item, eager, onHide }: { item: PhotoItem; eager: boolean; onHide: (what: 'post' | 'person') => void }) {
+function Slide({
+  item,
+  eager,
+  onHide,
+  onOpenSnap,
+}: {
+  item: PhotoItem
+  eager: boolean
+  onHide: (what: 'post' | 'person') => void
+  onOpenSnap: () => void
+}) {
   const toast = useToast()
   const [pic, setPic] = useState(0)
   const [expanded, setExpanded] = useState(false)
   const [viewing, setViewing] = useState<number | null>(null)
   const p = item.post
+  // Snaps open in a modal over the feed, like on the Snaps tab; full posts go to their page.
+  const openPost = p.depth > 0 ? (e: ReactMouseEvent) => openInModal(e, onOpenSnap) : undefined
   const alt = item.title || item.caption.slice(0, 120) || `Photo by @${p.author}`
 
   async function share() {
@@ -252,6 +265,7 @@ function Slide({ item, eager, onHide }: { item: PhotoItem; eager: boolean; onHid
           )}
           <Link
             to={postPath(p)}
+            onClick={openPost}
             className="pointer-events-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-white"
           >
             {fullPostLabel(item)} →
@@ -262,11 +276,26 @@ function Slide({ item, eager, onHide }: { item: PhotoItem; eager: boolean; onHid
           ⤢ Tap to enlarge
         </span>
 
-        {viewing !== null && <PhotoLightbox item={item} start={viewing} onClose={() => setViewing(null)} />}
+        {viewing !== null && (
+          <PhotoLightbox
+            item={item}
+            start={viewing}
+            onClose={() => setViewing(null)}
+            // The viewer is a top-layer <dialog>, so close it before the snap modal opens.
+            onOpenPost={
+              openPost &&
+              ((e) =>
+                openInModal(e, () => {
+                  setViewing(null)
+                  onOpenSnap()
+                }))
+            }
+          />
+        )}
 
         <div className="absolute right-3 bottom-6 flex flex-col items-center gap-4 text-white">
           <VoteButton post={p} overlay />
-          <Link to={postPath(p)} className="flex flex-col items-center gap-1 text-xs font-semibold" aria-label={`${p.children} comments`}>
+          <Link to={postPath(p)} onClick={openPost} className="flex flex-col items-center gap-1 text-xs font-semibold" aria-label={`${p.children} comments`}>
             <span className={railBtn} aria-hidden>
               💬
             </span>
@@ -319,6 +348,7 @@ export default function Photos() {
   const { items, status, done, busy, heldBack } = session
   const [hidden, setHidden] = useState<Hidden>(() => load(HIDDEN_KEY, { people: [], posts: [] }))
   const [info, setInfo] = useState(false)
+  const [openSnap, setOpenSnap] = useState<PhotoItem | null>(null)
   const [index, setIndex] = useState(0)
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -340,6 +370,7 @@ export default function Photos() {
     const onKey = (e: KeyboardEvent) => {
       const el = scroller.current
       if (!el || (e.target as HTMLElement).closest('input, textarea, dialog, [role="menu"]')) return
+      if (document.querySelector('[aria-modal="true"]')) return // a snap is open on top
       const dir = e.key === 'ArrowDown' || e.key === 'j' ? 1 : e.key === 'ArrowUp' || e.key === 'k' ? -1 : 0
       if (!dir) return
       e.preventDefault()
@@ -402,7 +433,7 @@ export default function Photos() {
         className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none]"
       >
         {shown.map((it, i) => (
-          <Slide key={it.key} item={it} eager={Math.abs(i - index) < 2} onHide={(what) => hide(it, what)} />
+          <Slide key={it.key} item={it} eager={Math.abs(i - index) < 2} onHide={(what) => hide(it, what)} onOpenSnap={() => setOpenSnap(it)} />
         ))}
 
         {status === 'no-checker' ? (
@@ -451,6 +482,7 @@ export default function Photos() {
         </div>
       )}
 
+      {openSnap && <SnapModal author={openSnap.post.author} permlink={openSnap.post.permlink} onClose={() => setOpenSnap(null)} />}
       {info && <SafetyInfo heldBack={heldBack} onClose={() => setInfo(false)} />}
     </div>
   )

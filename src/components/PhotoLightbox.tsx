@@ -35,7 +35,18 @@ function contentBox(img: HTMLImageElement) {
  * them, tap to zoom in where you tapped, drag to look around, tap again to
  * zoom back out.
  */
-export default function PhotoLightbox({ item, start, onClose }: { item: PhotoItem; start: number; onClose: () => void }) {
+export default function PhotoLightbox({
+  item,
+  start,
+  onClose,
+  onOpenPost,
+}: {
+  item: PhotoItem
+  start: number
+  onClose: () => void
+  /** Handles a plain click on the full-post button (e.g. to open a snap in a modal); otherwise it's a normal link. */
+  onOpenPost?: (e: MouseEvent) => void
+}) {
   const dialog = useRef<HTMLDialogElement>(null)
   const strip = useRef<HTMLDivElement>(null)
   const zoomLayer = useRef<HTMLDivElement>(null)
@@ -185,7 +196,7 @@ export default function PhotoLightbox({ item, start, onClose }: { item: PhotoIte
             <span className="truncate">@{p.author}</span>
             <span className="font-normal text-white/60">· {timeAgo(p.created)}</span>
           </Link>
-          <Link to={postPath(p)} className="btn-primary w-full sm:ml-auto sm:w-auto">
+          <Link to={postPath(p)} className="btn-primary w-full sm:ml-auto sm:w-auto" onClick={onOpenPost}>
             {fullPostLabel(item)} →
           </Link>
         </div>

@@ -1,8 +1,8 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import Avatar from '../components/Avatar'
 import { postPath } from '../components/PostCard'
-import SnapModal from '../components/SnapModal'
+import SnapModal, { openInModal } from '../components/SnapModal'
 import { CardSkeleton, EmptyState, ErrorState } from '../components/Status'
 import { IMAGE_PROXY } from '../config'
 import { firstImage, summary, timeAgo } from '../lib/hive'
@@ -13,13 +13,6 @@ import { useAuth } from '../state/auth'
 import { usePrefs } from '../state/prefs'
 
 type View = 'new' | 'fire'
-
-/** Left-click opens the item in the modal; a modified/middle/right click behaves like a normal link. */
-function openInModal(e: MouseEvent, onOpen: () => void) {
-  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-  e.preventDefault()
-  onOpen()
-}
 
 export default function Snaps() {
   useTitle('Snaps')

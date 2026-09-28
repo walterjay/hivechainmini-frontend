@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router'
 import Avatar from '../components/Avatar'
 import { postPath } from '../components/PostCard'
+import SnapModal from '../components/SnapModal'
 import { CardSkeleton, EmptyState, ErrorState } from '../components/Status'
 import { IMAGE_PROXY } from '../config'
 import { firstImage, summary, timeAgo } from '../lib/hive'
@@ -13,6 +14,13 @@ import { usePrefs } from '../state/prefs'
 
 type View = 'new' | 'fire'
 
+/** Left-click opens the item in the modal; a modified/middle/right click behaves like a normal link. */
+function openInModal(e: MouseEvent, onOpen: () => void) {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+  e.preventDefault()
+  onOpen()
+}
+
 export default function Snaps() {
   useTitle('Snaps')
   const { account } = useAuth()
@@ -22,6 +30,7 @@ export default function Snaps() {
   const [error, setError] = useState(false)
   const [only, setOnly] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [open, setOpen] = useState<ShortFormItem | null>(null)
 
   useEffect(() => {
     let off = false
@@ -99,38 +108,41 @@ export default function Snaps() {
             const text = summary(p.body, 220)
             return (
               <li key={`${p.source}-${p.author}-${p.permlink}`} className="card p-4">
-                <Link to={postPath(p)} className="group flex gap-3">
+                <div className="mb-2 flex items-center gap-2.5 text-sm">
                   <Link to={`/u/${p.author}`} aria-hidden tabIndex={-1} className="shrink-0">
-                    <Avatar account={p.author} size={40} />
+                    <Avatar account={p.author} size={32} />
                   </Link>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-1.5 text-sm">
-                      <span className="font-semibold">@{p.author}</span>
-                      <span className="text-muted">·</span>
-                      <span className="text-muted">
-                        {source ? `${source.icon} ${source.label}` : ''} · {timeAgo(p.created)}
-                      </span>
-                    </div>
-                    {text && <p className="mt-1 text-sm group-hover:underline">{text}</p>}
-                    {img && (
-                      <img
-                        src={`${IMAGE_PROXY}/512x0/${img}`}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                        className="mt-2 max-h-64 w-full rounded-xl bg-zinc-100 object-cover dark:bg-zinc-800"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
-                    )}
-                    <div className={`mt-2 text-xs ${view === 'fire' ? 'font-bold text-brand' : 'text-muted'}`}>💬 {p.children}</div>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <Link to={`/u/${p.author}`} className="block truncate font-semibold hover:underline">
+                      @{p.author}
+                    </Link>
+                    <span className="block truncate text-xs text-muted">
+                      {source ? `${source.icon} ${source.label}` : ''} · {timeAgo(p.created)}
+                    </span>
                   </div>
+                </div>
+                <Link to={postPath(p)} className="group block" onClick={(e) => openInModal(e, () => setOpen(p))}>
+                  {text && <p className="text-sm group-hover:underline">{text}</p>}
+                  {img && (
+                    <img
+                      src={`${IMAGE_PROXY}/512x0/${img}`}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="mt-2 max-h-64 w-full rounded-xl bg-zinc-100 object-cover dark:bg-zinc-800"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  )}
+                  <div className={`mt-2 text-xs ${view === 'fire' ? 'font-bold text-brand' : 'text-muted'}`}>💬 {p.children}</div>
                 </Link>
               </li>
             )
           })}
         </ul>
       )}
+
+      {open && <SnapModal author={open.author} permlink={open.permlink} onClose={() => setOpen(null)} />}
     </>
   )
 }
